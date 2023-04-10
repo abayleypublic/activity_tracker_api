@@ -1,0 +1,1009 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "version": "v0.0.1",
+        "title": "Activity Tracker",
+        "description": "Track user activities against challenges"
+    },
+    "servers": [
+        {
+            "url": "activity.austinbayley.co.uk/api",
+            "description": "Production deployment"
+        },
+        {
+            "url": "activity-dev.austinbayley.co.uk/api",
+            "description": "Staging deployment"
+        },
+        {
+            "url": "locahost",
+            "description": "Used for local development"
+        }
+    ],
+    "paths": {
+        "/users": {
+            "parameters": [
+                {
+                    "name": "challenge",
+                    "description": "ID of a challenge",
+                    "in": "query",
+                    "required": false,
+                    "schema": {
+                        "type": "string"
+                    }
+                }
+            ],
+            "get": {
+                "summary": "Get a list of users",
+                "responses": {
+                    "200": {
+                        "description": "Found users",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/partialUser"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/notFoundError"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/unknownError"
+                    }
+                }
+            }
+        },
+        "/users/{id}": {
+            "parameters": [
+                {
+                    "name": "id",
+                    "description": "The ID of the user",
+                    "in": "path",
+                    "required": true,
+                    "schema": {
+                        "$ref": "#/components/schemas/userId"
+                    }
+                }
+            ],
+            "get": {
+                "summary": "Get user",
+                "responses": {
+                    "200": {
+                        "description": "Found user `id`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/user"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/unauthorisedError"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/forbiddenError"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/notFoundError"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/unknownError"
+                    }
+                }
+            },
+            "patch": {
+                "summary": "Patch a user",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/user"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "204": {
+                        "description": "User modified successfully"
+                    },
+                    "304": {
+                        "description": "User was not modified"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/badRequestError"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/unauthorisedError"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/forbiddenError"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/notFoundError"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/unprocessableError"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/unknownError"
+                    }
+                }
+            },
+            "delete": {
+                "summary": "Delete a user",
+                "responses": {
+                    "204": {
+                        "description": "User deleted successfully"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/unauthorisedError"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/forbiddenError"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/notFoundError"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/unknownError"
+                    }
+                }
+            },
+            "put": {
+                "summary": "Register user",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "description": "ID of the user",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/user"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Created new user"
+                    },
+                    "409": {
+                        "$ref": "#/components/responses/conflictError"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/unknownError"
+                    }
+                }
+            }
+        },
+        "/users/{id}/activities": {
+            "parameters": [
+                {
+                    "name": "id",
+                    "description": "The ID of the user",
+                    "in": "path",
+                    "required": true,
+                    "schema": {
+                        "$ref": "#/components/schemas/userId"
+                    }
+                }
+            ],
+            "get": {
+                "summary": "Get user activities",
+                "responses": {
+                    "200": {
+                        "description": "Found activities for user `id`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/user"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/unauthorisedError"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/forbiddenError"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/notFoundError"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/unknownError"
+                    }
+                }
+            },
+            "post": {
+                "summary": "Add activity for user",
+                "responses": {
+                    "200": {
+                        "description": "Added activity for user `id`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "string",
+                                    "description": "Activity ID"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/unauthorisedError"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/forbiddenError"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/notFoundError"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/unknownError"
+                    }
+                }
+            }
+        },
+        "/users/{id}/activities/{activityId}": {
+            "parameters": [
+                {
+                    "name": "id",
+                    "description": "The ID of the user",
+                    "in": "path",
+                    "required": true,
+                    "schema": {
+                        "$ref": "#/components/schemas/userId"
+                    }
+                },
+                {
+                    "name": "activityId",
+                    "description": "The ID of the activity",
+                    "in": "path",
+                    "required": true,
+                    "schema": {
+                        "type": "string"
+                    }
+                }
+            ],
+            "get": {
+                "summary": "Get activity",
+                "responses": {
+                    "200": {
+                        "description": "Found activity `activityId`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/activity"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/unauthorisedError"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/forbiddenError"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/notFoundError"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/unknownError"
+                    }
+                }
+            },
+            "patch": {
+                "summary": "Patch an activity",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/activity"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "204": {
+                        "description": "Activity modified successfully"
+                    },
+                    "304": {
+                        "description": "Activity was not modified"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/badRequestError"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/unauthorisedError"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/forbiddenError"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/notFoundError"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/unprocessableError"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/unknownError"
+                    }
+                }
+            },
+            "delete": {
+                "summary": "Delete an activity",
+                "responses": {
+                    "204": {
+                        "description": "Activity deleted successfully"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/unauthorisedError"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/forbiddenError"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/notFoundError"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/unknownError"
+                    }
+                }
+            }
+        },
+        "/challenges": {
+            "parameters": [
+                {
+                    "name": "search",
+                    "description": "Search string",
+                    "in": "query",
+                    "required": false,
+                    "schema": {
+                        "type": "string"
+                    }
+                }
+            ],
+            "get": {
+                "summary": "Get a list of challenges",
+                "security": [],
+                "responses": {
+                    "200": {
+                        "description": "Found challenges",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/partialChallenge"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/notFoundError"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/unknownError"
+                    }
+                }
+            },
+            "post": {
+                "summary": "Start new challenge",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/challenge"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Added challenge successfully",
+                        "content": {
+                        "application/json": {
+                            "schema": {
+                                "type":"string",
+                                "description": "Challenge ID"
+                            }
+                        }
+                    }
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/badRequestError"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/unauthorisedError"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/forbiddenError"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/unprocessableError"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/unknownError"
+                    }
+                }
+            }
+        },
+        "/challenges/{id}": {
+            "parameters": [
+                {
+                    "name": "id",
+                    "description": "Challenge ID",
+                    "in": "path",
+                    "required": true,
+                    "schema": {
+                        "type": "string"
+                    }
+                }
+            ],
+            "get": {
+                "summary": "Get details of a challenge",
+                "responses": {
+                    "200": {
+                        "description": "Found challenge",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "items": {
+                                        "$ref": "#/components/schemas/challenge"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/notFoundError"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/unknownError"
+                    }
+                }
+            },
+            "delete": {
+                "summary": "Delete a challenge",
+                "responses": {
+                    "204": {
+                        "description": "Challenge deleted successfully"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/unauthorisedError"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/forbiddenError"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/notFoundError"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/unknownError"
+                    }
+                }
+            }
+        },
+        "/challenges/{id}/members": {
+            "parameters": [
+                {
+                    "name": "id",
+                    "description": "Challenge ID",
+                    "in": "path",
+                    "required": true,
+                    "schema": {
+                        "type": "string"
+                    }
+                }
+            ],
+            "get": {
+                "summary": "Get all members of a challenge",
+                "responses": {
+                    "200": {
+                        "description": "Found users",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "items": {
+                                        "$ref": "#/components/schemas/partialUser"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/unauthorisedError"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/forbiddenError"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/notFoundError"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/unknownError"
+                    }
+                }
+            }
+        },
+        "/challenges/{id}/members/{userId}": {
+            "parameters": [
+                {
+                    "name": "id",
+                    "description": "Challenge ID",
+                    "in": "path",
+                    "required": true,
+                    "schema": {
+                        "type": "string"
+                    }
+                },
+                {
+                    "name": "userId",
+                    "description": "User ID",
+                    "in": "path",
+                    "required": true,
+                    "schema": {
+                        "type": "string"
+                    }
+                }
+            ],
+            "put": {
+                "summary": "Join a challenge",
+                "responses": {
+                    "204": {
+                        "description": "Successfully joined challenge"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/unauthorisedError"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/forbiddenError"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/notFoundError"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/unknownError"
+                    }
+                }
+            },
+            "delete": {
+                "summary": "Leave a challenge",
+                "responses": {
+                    "204": {
+                        "description": "Successfully left challenge"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/unauthorisedError"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/forbiddenError"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/notFoundError"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/unknownError"
+                    }
+                }
+            }
+        },
+        "/activities": {
+            "parameters": [
+                {
+                    "name": "search",
+                    "description": "Search string",
+                    "in": "query",
+                    "required": false,
+                    "schema": {
+                        "type": "string"
+                    }
+                }
+            ],
+            "get": {
+                "summary": "Get a list of available activity types",
+                "security": [],
+                "responses": {
+                    "200": {
+                        "description": "Found activities",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/activityType"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/notFoundError"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/unknownError"
+                    }
+                }
+            }
+        },
+        "/activities/{id}": {
+            "parameters": [
+                {
+                    "name": "id",
+                    "description": "Activity Type ID",
+                    "in": "path",
+                    "required": true,
+                    "schema": {
+                        "type": "string"
+                    }
+                }
+            ],
+            "put": {
+                "summary": "Add new activity type",
+                "description": "Only available to admin users",
+                "security": [
+                    {
+                        "bearerAuth": [
+                            "admin"
+                        ]
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/activityType"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "204": {
+                        "description": "Added activity type successfully"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/badRequestError"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/unauthorisedError"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/forbiddenError"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/unproccessableError"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/unknownError"
+                    }
+                }
+            },
+            "delete": {
+                "summary": "Delete an activity type",
+                "description": "Only available to admin users",
+                "responses": {
+                    "204": {
+                        "description": "Activity type deleted successfully"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/unauthorisedError"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/forbiddenError"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/notFoundError"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/unknownError"
+                    }
+                }
+            }
+        },
+        "/login": {
+            "post": {
+                "summary": "Log user in",
+                "security": [],
+                "responses": {
+                    "200": {
+                        "description": "User logged in",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "$ref": "#/components/schemas/token"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Strict-Transport-Security": {
+                                "schema": {
+                                    "type": "string",
+                                    "default": "max-age=63072000; includeSubDomains; preload"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/notFoundError"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/unknownError"
+                    }
+                }
+            }
+        },
+        "/logout": {
+            "post": {
+                "summary": "Log user out",
+                "responses": {
+                    "204": {
+                        "description": "User logged out"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/unauthorisedError"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/notFoundError"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/unknownError"
+                    }
+                }
+            }
+        },
+        "/download": {
+            "get": {
+                "summary": "Download all data for user",
+                "responses": {
+                    "200": {
+                        "description": "Data downloaded",
+                        "content": {
+                            "application/zip": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/unauthorisedError"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/forbiddenError"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/notFoundError"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/unknownError"
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "responses": {
+            "badRequestError": {
+                "description": "Bad request",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/error"
+                        }
+                    }
+                }
+            },
+            "unauthorisedError": {
+                "description": "Request not authenticated",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/error"
+                        }
+                    }
+                }
+            },
+            "forbiddenError": {
+                "description": "Request does not have appropriate permissions (unauthoirsed)",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/error"
+                        }
+                    }
+                }
+            },
+            "notFoundError": {
+                "description": "Resource not found",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/error"
+                        }
+                    }
+                }
+            },
+            "conflictError": {
+                "description": "Resource already exists",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/error"
+                        }
+                    }
+                }
+            },
+            "unprocessableError": {
+                "description": "Unable to decode request",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/error"
+                        }
+                    }
+                }
+            },
+            "unknownError": {
+                "description": "Unknown error occurred",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/error"
+                        }
+                    }
+                }
+            }
+        },
+        "schemas": {
+            "partialChallenge": {
+                "description": "Basic information about a challenge"
+            },
+            "challenge": {
+                "description": "All information relating to a challenge",
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "createdBy": {
+                        "$ref": "#/components/schemas/userId"
+                    },
+                    "startDate": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "endDate": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "inviteOnly": {
+                        "type": "boolean",
+                        "default": false
+                    }
+                }
+            },
+            "activityType": {
+                "description": "Represenation of an activity type e.g. running"
+            },
+            "activity": {
+                "description": "Represenation of an activity"
+            },
+            "userId": {
+                "description": "The unique identifier of a user",
+                "type": "string"
+            },
+            "token": {
+                "description": "A JWT token for a user",
+                "type": "string"
+            },
+            "partialUser": {
+                "description": "Partial representation of a user to be used publically",
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "$ref": "#/components/schemas/userId"
+                    },
+                    "firstName": {
+                        "type": "string"
+                    },
+                    "lastName": {
+                        "type": "string"
+                    },
+                    "bio": {
+                        "type": "string"
+                    }
+                }
+            },
+            "user": {
+                "description": "Full representation of a user containing all data held",
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "$ref": "#/components/schemas/userId"
+                    },
+                    "firstName": {
+                        "type": "string"
+                    },
+                    "lastName": {
+                        "type": "string"
+                    },
+                    "email": {
+                        "type": "string"
+                    },
+                    "bio": {
+                        "type": "string"
+                    },
+                    "challenges": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/partialChallenge"
+                        }
+                    },
+                    "activities": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/activity"
+                        }
+                    }
+                }
+            },
+            "error": {
+                "type": "object",
+                "required": [
+                    "message",
+                    "code"
+                ],
+                "properties": {
+                    "code": {
+                        "description": "HTTP response code",
+                        "type": "string"
+                    },
+                    "message": {
+                        "description": "A human readable error message",
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "securitySchemes": {
+            "bearerAuth": {
+                "type": "http",
+                "scheme": "bearer",
+                "bearerFormat": "JWT"
+            }
+        }
+    },
+    "security": [
+        {
+            "bearerAuth": []
+        }
+    ]
+}
