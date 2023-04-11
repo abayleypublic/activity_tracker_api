@@ -1,14 +1,109 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"log"
 	"os"
+	"time"
+
+	secretmanager "cloud.google.com/go/secretmanager/apiv1"
+	"cloud.google.com/go/secretmanager/apiv1/secretmanagerpb"
+	"github.com/AustinBayley/activity_tracker_api/pkg/engine"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-func main() {
-	// ...
-	fmt.Println("Creds:", os.Getenv("GOOGLE_APPLICATION_CREDENTIALS"))
+const (
+	DEV  string = "dev"
+	STG  string = "stg"
+	PROD string = "prod"
+)
 
-	// If DEV, load config from .env
-	// If STG / PROD, load config from google cloud secret manager
+const (
+	projectID string = "542135123656"
+)
+
+type MongoCredentials struct {
+	username string
+	password string
+}
+
+func getMongoCredentials() (*MongoCredentials, error) {
+
+	// Create the client.
+	ctx := context.Background()
+	secretsClient, err := secretmanager.NewClient(ctx)
+	if err != nil {
+		log.Fatalf("failed to setup client: %v", err)
+		return nil, err
+	}
+	defer secretsClient.Close()
+
+	// Get username
+	accessRequest := &secretmanagerpb.AccessSecretVersionRequest{
+		Name: fmt.Sprintf("projects/%s/secrets/dbUsername/versions/latest", projectID),
+	}
+
+	dbUsername, err := secretsClient.AccessSecretVersion(ctx, accessRequest)
+	if err != nil {
+		log.Fatalf("failed to access secret version: %v", err)
+		return nil, err
+	}
+
+	// Get password
+	accessRequest = &secretmanagerpb.AccessSecretVersionRequest{
+		Name: fmt.Sprintf("projects/%s/secrets/dbPassword/versions/latest", projectID),
+	}
+
+	dbPassword, err := secretsClient.AccessSecretVersion(ctx, accessRequest)
+	if err != nil {
+		log.Fatalf("failed to access secret version: %v", err)
+		return nil, err
+	}
+
+	return &MongoCredentials{
+		username: string(dbUsername.Payload.Data),
+		password: string(dbPassword.Payload.Data),
+	}, nil
+}
+
+func main() {
+
+	env := os.Getenv("ENVIRONMENT")
+
+	var mongoUri string
+	switch env {
+	// case STG:
+	// 	creds, _ := getMongoCredentials()
+	// 	mongoUri = fmt.Sprintf("mongodb+srv://%s:%s@activity-tracker-stg.ur4pqgv.mongodb.net/?retryWrites=true&w=majority", creds.username, creds.password)
+	case PROD:
+		creds, _ := getMongoCredentials()
+		mongoUri = fmt.Sprintf("mongodb+srv://%s:%s@activity-tracker.ur4pqgv.mongodb.net/?retryWrites=true&w=majority", creds.username, creds.password)
+	default:
+		mongoUri = os.Getenv("MONGODB_URI")
+	}
+
+	cfg := engine.NewConfig(mongoUri, 80)
+
+	// Connect to MongoDB
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI(mongoUri))
+	if err != nil {
+		panic(err)
+	}
+
+	defer func() {
+		if err := client.Disconnect(context.TODO()); err != nil {
+			panic(err)
+		}
+	}()
+
+	db := client.Database("activity-tracker")
+
+	engine := engine.NewEngine(cfg, db.Collection("users"), db.Collection("challenges"), db.Collection("activities"))
+	fmt.Println(engine)
+
 }
