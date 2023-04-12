@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"time"
 
 	secretmanager "cloud.google.com/go/secretmanager/apiv1"
 	"cloud.google.com/go/secretmanager/apiv1/secretmanagerpb"
+	"github.com/AustinBayley/activity_tracker_api/pkg/api"
 	"github.com/AustinBayley/activity_tracker_api/pkg/engine"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -84,7 +86,12 @@ func main() {
 		mongoUri = os.Getenv("MONGODB_URI")
 	}
 
-	cfg := engine.NewConfig(mongoUri, 80)
+	port, err := strconv.Atoi(os.Getenv("PORT"))
+	if err != nil {
+		panic(err)
+	}
+
+	cfg := engine.NewConfig(mongoUri, port)
 
 	// Connect to MongoDB
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
@@ -105,5 +112,8 @@ func main() {
 
 	engine := engine.NewEngine(cfg, db.Collection("users"), db.Collection("challenges"), db.Collection("activities"))
 	fmt.Println(engine)
+
+	a := api.NewAPI(engine)
+	a.Start()
 
 }

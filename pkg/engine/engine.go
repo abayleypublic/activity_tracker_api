@@ -12,14 +12,14 @@ type Engine struct {
 }
 
 type Config struct {
-	mongodb_uri string
-	port        int
+	Mongodb_uri string
+	Port        int
 }
 
 func NewConfig(mongodb_uri string, port int) Config {
 	return Config{
-		mongodb_uri: mongodb_uri,
-		port:        port,
+		Mongodb_uri: mongodb_uri,
+		Port:        port,
 	}
 }
 
