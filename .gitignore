@@ -2,3 +2,4 @@ data/
 tmp/
 main
 .env
+.DS_Store

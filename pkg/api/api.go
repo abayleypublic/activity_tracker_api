@@ -9,18 +9,38 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/AustinBayley/activity_tracker_api/pkg/engine"
+	"github.com/AustinBayley/activity_tracker_api/pkg/activities"
+	"github.com/AustinBayley/activity_tracker_api/pkg/challenges"
+	"github.com/AustinBayley/activity_tracker_api/pkg/users"
 	"github.com/monzo/typhon"
 )
 
 type API struct {
-	*engine.Engine
+	cfg        Config
+	users      *users.Users
+	challenges *challenges.Challenges
+	activities *activities.Activities
 }
 
-func NewAPI(e *engine.Engine) *API {
+func NewAPI(cfg Config) *API {
+
+	db := NewDb(cfg)
+
+	users := users.NewUsers(db.Collection("users"))
+	challenges := challenges.NewChallenges(db.Collection("challenges"))
+	activities := activities.NewActivities(db.Collection("activities"))
+
 	return &API{
-		e,
+		cfg,
+		users,
+		challenges,
+		activities,
 	}
+}
+
+func Logging(req typhon.Request, svc typhon.Service) typhon.Response {
+	log.Printf("📡 %v %v - %v", req.Method, req.URL, req.RemoteAddr)
+	return svc(req)
 }
 
 func (a *API) Start() {
@@ -33,8 +53,9 @@ func (a *API) Start() {
 
 	svc := r.Serve().
 		Filter(typhon.ErrorFilter).
-		Filter(typhon.H2cFilter)
-	srv, err := typhon.Listen(svc, fmt.Sprintf(":%d", a.Engine.Config.Port), typhon.WithTimeout(typhon.TimeoutOptions{Read: time.Second * 10}))
+		Filter(typhon.H2cFilter).
+		Filter(Logging)
+	srv, err := typhon.Listen(svc, fmt.Sprintf(":%d", a.cfg.Port), typhon.WithTimeout(typhon.TimeoutOptions{Read: time.Second * 10}))
 	if err != nil {
 		panic(err)
 	}

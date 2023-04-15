@@ -6,14 +6,10 @@ import (
 	"log"
 	"os"
 	"strconv"
-	"time"
 
 	secretmanager "cloud.google.com/go/secretmanager/apiv1"
 	"cloud.google.com/go/secretmanager/apiv1/secretmanagerpb"
 	"github.com/AustinBayley/activity_tracker_api/pkg/api"
-	"github.com/AustinBayley/activity_tracker_api/pkg/engine"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 const (
@@ -91,29 +87,9 @@ func main() {
 		panic(err)
 	}
 
-	cfg := engine.NewConfig(mongoUri, port)
+	cfg := api.NewConfig(mongoUri, port)
 
-	// Connect to MongoDB
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-	defer cancel()
-
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(mongoUri))
-	if err != nil {
-		panic(err)
-	}
-
-	defer func() {
-		if err := client.Disconnect(context.TODO()); err != nil {
-			panic(err)
-		}
-	}()
-
-	db := client.Database("activity-tracker")
-
-	engine := engine.NewEngine(cfg, db.Collection("users"), db.Collection("challenges"), db.Collection("activities"))
-	fmt.Println(engine)
-
-	a := api.NewAPI(engine)
+	a := api.NewAPI(cfg)
 	a.Start()
 
 }
