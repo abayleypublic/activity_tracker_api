@@ -14,7 +14,7 @@ func NewActivities(c *mongo.Collection) *Activities {
 }
 
 type Activity struct {
-	string
+	name string
 }
 
 func (a *Activities) GetActivities(req typhon.Request) typhon.Response {

@@ -38,11 +38,6 @@ func NewAPI(cfg Config) *API {
 	}
 }
 
-func Logging(req typhon.Request, svc typhon.Service) typhon.Response {
-	log.Printf("📡 %v %v - %v", req.Method, req.URL, req.RemoteAddr)
-	return svc(req)
-}
-
 func (a *API) Start() {
 
 	r := typhon.Router{}
@@ -52,6 +47,7 @@ func (a *API) Start() {
 	})
 
 	svc := r.Serve().
+		Filter(ValidAuth).
 		Filter(typhon.ErrorFilter).
 		Filter(typhon.H2cFilter).
 		Filter(Logging)
