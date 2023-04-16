@@ -10,47 +10,68 @@ import (
 	"time"
 
 	"github.com/AustinBayley/activity_tracker_api/pkg/activities"
+	"github.com/AustinBayley/activity_tracker_api/pkg/auth"
 	"github.com/AustinBayley/activity_tracker_api/pkg/challenges"
 	"github.com/AustinBayley/activity_tracker_api/pkg/users"
 	"github.com/monzo/typhon"
 )
 
 type API struct {
+	typhon.Router
 	cfg        Config
+	auth       *auth.Auth
 	users      *users.Users
 	challenges *challenges.Challenges
 	activities *activities.Activities
 }
 
-func NewAPI(cfg Config) *API {
+func NewAPI(cfg Config) (*API, error) {
 
 	db := NewDb(cfg)
+
+	auth, err := auth.NewAuth(cfg.ProjectID)
+	if err != nil {
+		return nil, err
+	}
 
 	users := users.NewUsers(db.Collection("users"))
 	challenges := challenges.NewChallenges(db.Collection("challenges"))
 	activities := activities.NewActivities(db.Collection("activities"))
 
 	return &API{
+		typhon.Router{},
 		cfg,
+		auth,
 		users,
 		challenges,
 		activities,
+	}, nil
+}
+
+func addFilters(svc typhon.Service, filters []typhon.Filter) typhon.Service {
+	for _, f := range filters {
+		svc = svc.Filter(f)
 	}
+	return svc
 }
 
 func (a *API) Start() {
 
-	r := typhon.Router{}
-
-	r.GET("/health", func(req typhon.Request) typhon.Response {
+	a.GET("/health", func(req typhon.Request) typhon.Response {
 		return req.Response("OK")
 	})
 
-	svc := r.Serve().
-		Filter(ValidAuth).
-		Filter(typhon.ErrorFilter).
+	a.GET("/users", addFilters(a.users.GetUsers, []typhon.Filter{a.AdminAuthFilter}))
+
+	a.PUT("/admin/:id", a.PutAdmin)
+
+	// Make sure body filtering and logging go last!
+	svc := a.Serve().
 		Filter(typhon.H2cFilter).
+		Filter(typhon.ErrorFilter).
+		Filter(a.BodyFilter).
 		Filter(Logging)
+
 	srv, err := typhon.Listen(svc, fmt.Sprintf(":%d", a.cfg.Port), typhon.WithTimeout(typhon.TimeoutOptions{Read: time.Second * 10}))
 	if err != nil {
 		panic(err)
@@ -64,4 +85,10 @@ func (a *API) Start() {
 	c, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	srv.Stop(c)
+}
+
+func (a *API) Error(req typhon.Request, err error) typhon.Response {
+	res := req.Response(err.Error())
+	res.Error = err
+	return res
 }

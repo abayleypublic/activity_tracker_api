@@ -2,7 +2,6 @@ package auth
 
 import (
 	"context"
-	"errors"
 	"strings"
 
 	firebase "firebase.google.com/go"
@@ -16,35 +15,48 @@ import (
 // 	Admin       bool
 // }
 
-const (
-	ErrNoAuth      string = "no token supplied"
-	ErrInvalidAuth string = "invalid token supplied"
-)
+type Auth struct {
+	*firebase.App
+	ProjectID string
+}
 
-func GetAuthToken(req typhon.Request) (string, error) {
+func NewAuth(projectID string) (*Auth, error) {
+
+	cfg := &firebase.Config{
+		ProjectID: projectID,
+	}
+
+	app, err := firebase.NewApp(context.Background(), cfg)
+	if err != nil {
+		return nil, terrors.InternalService("", "error getting auth client", nil)
+	}
+
+	return &Auth{
+		app,
+		projectID,
+	}, nil
+}
+
+func (a *Auth) GetAuthToken(req typhon.Request) (string, error) {
 	reqToken := req.Header.Get("Authorization")
 
 	// If no token is supplied in the Authorization header, return error
 	if reqToken == "" {
-		return "", errors.New(ErrNoAuth)
+		return "", terrors.Unauthorized("", "token not supplied", nil)
 	}
 
 	splitToken := strings.Split(reqToken, "Bearer ")
 
 	if len(splitToken) != 2 {
-		return "", errors.New(ErrInvalidAuth)
+		return "", terrors.Forbidden("", "invalid token", nil)
 	}
 
 	return splitToken[1], nil
 }
 
-func GetValidToken(t string) (*auth.Token, error) {
-	app, err := firebase.NewApp(context.Background(), nil)
-	if err != nil {
-		return nil, terrors.InternalService("", "error getting auth client", nil)
-	}
+func (a *Auth) GetValidToken(t string) (*auth.Token, error) {
 
-	client, err := app.Auth(context.Background())
+	client, err := a.Auth(context.Background())
 	if err != nil {
 		return nil, terrors.InternalService("", "error getting auth client", nil)
 	}

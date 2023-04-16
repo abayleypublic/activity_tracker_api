@@ -70,16 +70,16 @@ func main() {
 
 	env := os.Getenv("ENVIRONMENT")
 
-	var mongoUri string
+	var mongoURI string
 	switch env {
 	// case STG:
 	// 	creds, _ := getMongoCredentials()
 	// 	mongoUri = fmt.Sprintf("mongodb+srv://%s:%s@activity-tracker-stg.ur4pqgv.mongodb.net/?retryWrites=true&w=majority", creds.username, creds.password)
 	case PROD:
 		creds, _ := getMongoCredentials()
-		mongoUri = fmt.Sprintf("mongodb+srv://%s:%s@activity-tracker.ur4pqgv.mongodb.net/?retryWrites=true&w=majority", creds.username, creds.password)
+		mongoURI = fmt.Sprintf("mongodb+srv://%s:%s@activity-tracker.ur4pqgv.mongodb.net/?retryWrites=true&w=majority", creds.username, creds.password)
 	default:
-		mongoUri = os.Getenv("MONGODB_URI")
+		mongoURI = os.Getenv("MONGODB_URI")
 	}
 
 	port, err := strconv.Atoi(os.Getenv("PORT"))
@@ -87,9 +87,14 @@ func main() {
 		panic(err)
 	}
 
-	cfg := api.NewConfig(mongoUri, port)
+	cfg := api.NewConfig(mongoURI, port, projectID)
 
-	a := api.NewAPI(cfg)
+	a, err := api.NewAPI(cfg)
+
+	if err != nil {
+		panic(err)
+	}
+
 	a.Start()
 
 }

@@ -1,13 +1,15 @@
 package api
 
 type Config struct {
-	MongodbUri string
+	MongodbURI string
 	Port       int
+	ProjectID  string
 }
 
-func NewConfig(mongodbUri string, port int) Config {
+func NewConfig(mongodbURI string, port int, projectID string) Config {
 	return Config{
-		MongodbUri: mongodbUri,
+		MongodbURI: mongodbURI,
 		Port:       port,
+		ProjectID:  projectID,
 	}
 }
