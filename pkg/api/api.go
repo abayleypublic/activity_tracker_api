@@ -61,15 +61,42 @@ func addFilters(svc typhon.Service, filters []typhon.Filter) typhon.Service {
 
 func (a *API) Start() {
 
+	// Get health of service
 	a.GET("/health", func(req typhon.Request) typhon.Response {
 		return req.Response("OK")
 	})
 
-	a.GET("/users", addFilters(a.GetUsers, []typhon.Filter{a.AdminAuthFilter}))
+	// Activity Routes
+	a.GET("/activities", addFilters(a.GetActivities, []typhon.Filter{}))
+	a.PUT("/challenges/:id", addFilters(a.PutActivity, []typhon.Filter{}))
+	a.DELETE("/challenges/:id", addFilters(a.DeleteActivity, []typhon.Filter{}))
 
-	a.GET("/admin/:id", a.GetAdmin)
-	a.PUT("/admin/:id", a.PutAdmin)
-	a.DELETE("/admin/:id", a.DeleteAdmin)
+	// Admin Routes
+	a.GET("/admin/:id", addFilters(a.GetAdmin, []typhon.Filter{}))
+	a.PUT("/admin/:id", addFilters(a.PutAdmin, []typhon.Filter{}))
+	a.DELETE("/admin/:id", addFilters(a.DeleteAdmin, []typhon.Filter{}))
+
+	// Challenges Routes
+	a.GET("/challenges", addFilters(a.GetChallenges, []typhon.Filter{}))
+	a.POST("/challenges", addFilters(a.PostChallenge, []typhon.Filter{}))
+	a.GET("/challenges/:id", addFilters(a.GetChallenge, []typhon.Filter{}))
+	a.DELETE("/challenges/:id", addFilters(a.DeleteChallenge, []typhon.Filter{}))
+	a.PATCH("/challenges/:id", addFilters(a.PatchChallenge, []typhon.Filter{}))
+	a.GET("/challenges/:id/members", addFilters(a.GetMembers, []typhon.Filter{}))
+	a.PUT("/challenges/:id/members/:userID", addFilters(a.PutMember, []typhon.Filter{}))
+	a.DELETE("/challenges/:id/members/:userID", addFilters(a.DeleteMember, []typhon.Filter{}))
+
+	// User routes
+	a.GET("/users", addFilters(a.GetUsers, []typhon.Filter{a.AdminAuthFilter}))
+	a.GET("/users/:id", addFilters(a.GetUser, []typhon.Filter{}))
+	a.PATCH("/users/:id", addFilters(a.PatchUser, []typhon.Filter{}))
+	a.DELETE("/users/:id", addFilters(a.DeleteUser, []typhon.Filter{}))
+	a.PUT("/users/:id", addFilters(a.PutUser, []typhon.Filter{}))
+	a.GET("/users/:id/activities", addFilters(a.GetUserActivities, []typhon.Filter{}))
+	a.POST("/users/:id/activities", addFilters(a.PostUserActivity, []typhon.Filter{}))
+	a.GET("/users/:id/activities/:activityID", addFilters(a.GetUserActivity, []typhon.Filter{}))
+	a.PATCH("/users/:id/activities/:activityID", addFilters(a.PatchUserActivity, []typhon.Filter{}))
+	a.DELETE("/users/:id/activities/:activityID", addFilters(a.DeleteUserActivity, []typhon.Filter{}))
 
 	// Make sure body filtering and logging go last!
 	svc := a.Serve().

@@ -1,7 +1,6 @@
 package activities
 
 import (
-	"github.com/monzo/typhon"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -15,10 +14,4 @@ func NewActivities(c *mongo.Collection) *Activities {
 
 type Activity struct {
 	name string
-}
-
-func (a *Activities) GetActivities(req typhon.Request) typhon.Response {
-
-	return req.Response("OK")
-
 }

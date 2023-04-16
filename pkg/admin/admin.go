@@ -7,7 +7,7 @@ import (
 )
 
 type Admin struct {
-	*auth.Auth
+	auth *auth.Auth
 }
 
 func NewAdmin(auth *auth.Auth) *Admin {
@@ -18,7 +18,7 @@ func NewAdmin(auth *auth.Auth) *Admin {
 
 func (a *Admin) GetAdmin(ctx context.Context, id string) (bool, error) {
 
-	user, err := a.GetUser(ctx, id)
+	user, err := a.auth.GetUser(ctx, id)
 	if err != nil {
 		return false, err
 	}
@@ -34,7 +34,7 @@ func (a *Admin) GetAdmin(ctx context.Context, id string) (bool, error) {
 func (a *Admin) SetAdmin(ctx context.Context, id string, admin bool) error {
 
 	claims := map[string]interface{}{"admin": admin}
-	if err := a.SetCustomUserClaims(ctx, id, claims); err != nil {
+	if err := a.auth.SetCustomUserClaims(ctx, id, claims); err != nil {
 		return err
 	}
 

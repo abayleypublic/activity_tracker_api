@@ -1,7 +1,6 @@
 package challenges
 
 import (
-	"github.com/monzo/typhon"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -21,10 +20,4 @@ type Challenge struct {
 	startDate   string
 	endDate     string
 	inviteOnly  bool
-}
-
-func (c *Challenges) GetChallenges(req typhon.Request) typhon.Response {
-
-	return req.Response("OK")
-
 }
