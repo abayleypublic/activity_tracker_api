@@ -1,7 +1,6 @@
 package api
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/monzo/terrors"
@@ -10,13 +9,33 @@ import (
 
 func (a *API) GetAdmin(req typhon.Request) typhon.Response {
 
-	return req.Response("OK")
+	id, ok := a.Params(req)["id"]
+
+	if !ok {
+		return a.Error(req, terrors.BadRequest("", "id not supplied", nil))
+	}
+
+	admin, err := a.admin.GetAdmin(req.Context, id)
+
+	if err != nil {
+		return a.Error(req, terrors.BadRequest("", "error getting admin status", nil))
+	}
+
+	return req.Response(admin)
 
 }
 
 func (a *API) DeleteAdmin(req typhon.Request) typhon.Response {
 
-	return req.Response("OK")
+	id, ok := a.Params(req)["id"]
+
+	if !ok {
+		return a.Error(req, terrors.BadRequest("", "id not supplied", nil))
+	}
+
+	a.admin.SetAdmin(req.Context, id, false)
+
+	return req.ResponseWithCode(nil, http.StatusNoContent)
 
 }
 
@@ -28,18 +47,8 @@ func (a *API) PutAdmin(req typhon.Request) typhon.Response {
 		return a.Error(req, terrors.BadRequest("", "id not supplied", nil))
 	}
 
-	client, err := a.auth.Auth(req.Context)
-	if err != nil {
-		return a.Error(req, terrors.BadRequest("", "error getting auth client", nil))
-	}
+	a.admin.SetAdmin(req.Context, id, true)
 
-	claims := map[string]interface{}{"admin": true}
-	fmt.Println("Got here")
-	if err = client.SetCustomUserClaims(req.Context, id, claims); err != nil {
-		return a.Error(req, terrors.BadRequest("", "error setting custom claims", nil))
-	}
-	fmt.Println("Got here")
-
-	return req.ResponseWithCode(nil, http.StatusCreated)
+	return req.ResponseWithCode(nil, http.StatusNoContent)
 
 }

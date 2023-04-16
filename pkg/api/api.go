@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/AustinBayley/activity_tracker_api/pkg/activities"
+	"github.com/AustinBayley/activity_tracker_api/pkg/admin"
 	"github.com/AustinBayley/activity_tracker_api/pkg/auth"
 	"github.com/AustinBayley/activity_tracker_api/pkg/challenges"
 	"github.com/AustinBayley/activity_tracker_api/pkg/users"
@@ -23,6 +24,7 @@ type API struct {
 	users      *users.Users
 	challenges *challenges.Challenges
 	activities *activities.Activities
+	admin      *admin.Admin
 }
 
 func NewAPI(cfg Config) (*API, error) {
@@ -34,6 +36,7 @@ func NewAPI(cfg Config) (*API, error) {
 		return nil, err
 	}
 
+	admin := admin.NewAdmin(auth)
 	users := users.NewUsers(db.Collection("users"))
 	challenges := challenges.NewChallenges(db.Collection("challenges"))
 	activities := activities.NewActivities(db.Collection("activities"))
@@ -45,6 +48,7 @@ func NewAPI(cfg Config) (*API, error) {
 		users,
 		challenges,
 		activities,
+		admin,
 	}, nil
 }
 
@@ -61,9 +65,11 @@ func (a *API) Start() {
 		return req.Response("OK")
 	})
 
-	a.GET("/users", addFilters(a.users.GetUsers, []typhon.Filter{a.AdminAuthFilter}))
+	a.GET("/users", addFilters(a.GetUsers, []typhon.Filter{a.AdminAuthFilter}))
 
+	a.GET("/admin/:id", a.GetAdmin)
 	a.PUT("/admin/:id", a.PutAdmin)
+	a.DELETE("/admin/:id", a.DeleteAdmin)
 
 	// Make sure body filtering and logging go last!
 	svc := a.Serve().

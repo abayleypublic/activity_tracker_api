@@ -16,7 +16,7 @@ import (
 // }
 
 type Auth struct {
-	*firebase.App
+	*auth.Client
 	ProjectID string
 }
 
@@ -31,8 +31,13 @@ func NewAuth(projectID string) (*Auth, error) {
 		return nil, terrors.InternalService("", "error getting auth client", nil)
 	}
 
+	client, err := app.Auth(context.Background())
+	if err != nil {
+		return nil, terrors.BadRequest("", "error getting auth client", nil)
+	}
+
 	return &Auth{
-		app,
+		client,
 		projectID,
 	}, nil
 }
@@ -56,12 +61,7 @@ func (a *Auth) GetAuthToken(req typhon.Request) (string, error) {
 
 func (a *Auth) GetValidToken(t string) (*auth.Token, error) {
 
-	client, err := a.Auth(context.Background())
-	if err != nil {
-		return nil, terrors.InternalService("", "error getting auth client", nil)
-	}
-
-	token, err := client.VerifyIDTokenAndCheckRevoked(context.Background(), t)
+	token, err := a.VerifyIDTokenAndCheckRevoked(context.Background(), t)
 	if err != nil {
 		return nil, terrors.Forbidden("", "error verifying ID token", nil)
 	}

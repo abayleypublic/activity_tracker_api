@@ -1,12 +1,13 @@
 package admin
 
 import (
+	"context"
+
 	"github.com/AustinBayley/activity_tracker_api/pkg/auth"
-	"github.com/monzo/typhon"
 )
 
 type Admin struct {
-	auth *auth.Auth
+	*auth.Auth
 }
 
 func NewAdmin(auth *auth.Auth) *Admin {
@@ -15,20 +16,27 @@ func NewAdmin(auth *auth.Auth) *Admin {
 	}
 }
 
-func (a *Admin) GetAdmin(req typhon.Request) typhon.Response {
+func (a *Admin) GetAdmin(ctx context.Context, id string) (bool, error) {
 
-	return req.Response("OK")
+	user, err := a.GetUser(ctx, id)
+	if err != nil {
+		return false, err
+	}
+
+	if admin, ok := user.CustomClaims["admin"]; ok {
+		return admin.(bool), nil
+	}
+
+	return false, nil
 
 }
 
-func (a *Admin) DeleteAdmin(req typhon.Request) typhon.Response {
+func (a *Admin) SetAdmin(ctx context.Context, id string, admin bool) error {
 
-	return req.Response("OK")
+	claims := map[string]interface{}{"admin": admin}
+	if err := a.SetCustomUserClaims(ctx, id, claims); err != nil {
+		return err
+	}
 
-}
-
-func (a *Admin) PutAdmin(req typhon.Request) typhon.Response {
-
-	return req.Response("OK")
-
+	return nil
 }
