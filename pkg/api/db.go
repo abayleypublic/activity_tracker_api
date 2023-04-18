@@ -12,7 +12,7 @@ const (
 	dbName string = "activity-tracker"
 )
 
-func NewDb(cfg Config) *mongo.Database {
+func NewDB(cfg Config) *mongo.Database {
 
 	// Connect to MongoDB
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
@@ -22,12 +22,6 @@ func NewDb(cfg Config) *mongo.Database {
 	if err != nil {
 		panic(err)
 	}
-
-	defer func() {
-		if err := client.Disconnect(context.TODO()); err != nil {
-			panic(err)
-		}
-	}()
 
 	return client.Database(dbName)
 }

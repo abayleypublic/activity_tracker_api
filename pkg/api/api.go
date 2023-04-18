@@ -15,11 +15,13 @@ import (
 	"github.com/AustinBayley/activity_tracker_api/pkg/challenges"
 	"github.com/AustinBayley/activity_tracker_api/pkg/users"
 	"github.com/monzo/typhon"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type API struct {
 	typhon.Router
 	cfg        Config
+	db         *mongo.Database
 	auth       *auth.Auth
 	users      *users.Users
 	challenges *challenges.Challenges
@@ -29,7 +31,7 @@ type API struct {
 
 func NewAPI(cfg Config) (*API, error) {
 
-	db := NewDb(cfg)
+	db := NewDB(cfg)
 
 	auth, err := auth.NewAuth(cfg.ProjectID)
 	if err != nil {
@@ -44,6 +46,7 @@ func NewAPI(cfg Config) (*API, error) {
 	return &API{
 		typhon.Router{},
 		cfg,
+		db,
 		auth,
 		users,
 		challenges,
@@ -87,7 +90,7 @@ func (a *API) Start() {
 	a.DELETE("/challenges/:id/members/:userID", addFilters(a.DeleteMember, []typhon.Filter{}))
 
 	// User routes
-	a.GET("/users", addFilters(a.GetUsers, []typhon.Filter{a.AdminAuthFilter}))
+	a.GET("/users", addFilters(a.GetUsers, []typhon.Filter{}))
 	a.GET("/users/:id", addFilters(a.GetUser, []typhon.Filter{}))
 	a.PATCH("/users/:id", addFilters(a.PatchUser, []typhon.Filter{}))
 	a.DELETE("/users/:id", addFilters(a.DeleteUser, []typhon.Filter{}))
@@ -104,6 +107,15 @@ func (a *API) Start() {
 		Filter(typhon.ErrorFilter).
 		Filter(a.BodyFilter).
 		Filter(Logging)
+
+	defer func() {
+
+		log.Printf("Shutting down database connection")
+
+		if err := a.db.Client().Disconnect(context.TODO()); err != nil {
+			panic(err)
+		}
+	}()
 
 	srv, err := typhon.Listen(svc, fmt.Sprintf(":%d", a.cfg.Port), typhon.WithTimeout(typhon.TimeoutOptions{Read: time.Second * 10}))
 	if err != nil {

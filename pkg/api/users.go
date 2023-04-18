@@ -1,18 +1,36 @@
 package api
 
 import (
+	"net/http"
+
+	"github.com/monzo/terrors"
 	"github.com/monzo/typhon"
 )
 
 func (a *API) GetUsers(req typhon.Request) typhon.Response {
 
-	return req.Response("OK")
+	u, err := a.users.GetUsers(req.Context)
+	if err != nil {
+		return a.Error(req, err)
+	}
+
+	return req.Response(u)
 
 }
 
 func (a *API) GetUser(req typhon.Request) typhon.Response {
 
-	return req.Response("OK")
+	id, ok := a.Params(req)["id"]
+	if !ok {
+		return a.Error(req, terrors.BadRequest("", "id not supplied", nil))
+	}
+
+	u, err := a.users.GetUser(req.Context, id)
+	if err != nil {
+		return a.Error(req, terrors.NotFound("", err.Error(), nil))
+	}
+
+	return req.Response(u)
 
 }
 
@@ -24,7 +42,17 @@ func (a *API) PatchUser(req typhon.Request) typhon.Response {
 
 func (a *API) DeleteUser(req typhon.Request) typhon.Response {
 
-	return req.Response("OK")
+	id, ok := a.Params(req)["id"]
+	if !ok {
+		return a.Error(req, terrors.BadRequest("", "id not supplied", nil))
+	}
+
+	_, err := a.users.DeleteUser(req.Context, id)
+	if err != nil {
+		return a.Error(req, terrors.NotFound("", err.Error(), nil))
+	}
+
+	return req.ResponseWithCode(interface{}(nil), http.StatusOK)
 
 }
 

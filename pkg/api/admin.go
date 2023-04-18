@@ -10,7 +10,6 @@ import (
 func (a *API) GetAdmin(req typhon.Request) typhon.Response {
 
 	id, ok := a.Params(req)["id"]
-
 	if !ok {
 		return a.Error(req, terrors.BadRequest("", "id not supplied", nil))
 	}
@@ -28,7 +27,6 @@ func (a *API) GetAdmin(req typhon.Request) typhon.Response {
 func (a *API) DeleteAdmin(req typhon.Request) typhon.Response {
 
 	id, ok := a.Params(req)["id"]
-
 	if !ok {
 		return a.Error(req, terrors.BadRequest("", "id not supplied", nil))
 	}
@@ -42,7 +40,6 @@ func (a *API) DeleteAdmin(req typhon.Request) typhon.Response {
 func (a *API) PutAdmin(req typhon.Request) typhon.Response {
 
 	id, ok := a.Params(req)["id"]
-
 	if !ok {
 		return a.Error(req, terrors.BadRequest("", "id not supplied", nil))
 	}

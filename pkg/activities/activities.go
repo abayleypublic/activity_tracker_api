@@ -13,5 +13,5 @@ func NewActivities(c *mongo.Collection) *Activities {
 }
 
 type Activity struct {
-	name string
+	Name string
 }

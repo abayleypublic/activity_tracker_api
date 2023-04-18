@@ -13,11 +13,11 @@ func NewChallenges(c *mongo.Collection) *Challenges {
 }
 
 type Challenge struct {
-	id          string
-	name        string
-	description string
-	createdBy   string
-	startDate   string
-	endDate     string
-	inviteOnly  bool
+	ID          string
+	Name        string
+	Description string
+	CreatedBy   string
+	StartDate   string
+	EndDate     string
+	InviteOnly  bool
 }

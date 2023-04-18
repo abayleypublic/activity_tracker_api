@@ -1,7 +1,10 @@
 package users
 
 import (
+	"context"
+
 	"github.com/AustinBayley/activity_tracker_api/pkg/activities"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -14,11 +17,27 @@ func NewUsers(c *mongo.Collection) *Users {
 }
 
 type User struct {
-	id         string
-	firstName  string
-	lastName   string
-	email      string
-	bio        string
-	challenges []string
-	activities []activities.Activity
+	ID         string                `json:"id" bson:"_id"`
+	FirstName  string                `json:"firstName" bson:"firstName"`
+	LastName   string                `json:"lastName" bson:"lastName"`
+	Email      string                `json:"email" bson:"email"`
+	Bio        string                `json:"bio" bson:"bio"`
+	Challenges []string              `json:"challenges" bson:"challenges"`
+	Activities []activities.Activity `json:"activities" bson:"activities"`
+}
+
+func (u *Users) GetUsers(ctx context.Context) ([]User, error) {
+
+	cur, err := u.Find(ctx, bson.D{})
+	if err != nil {
+		return nil, err
+	}
+
+	users := []User{}
+	if err = cur.All(ctx, &users); err != nil {
+		return nil, err
+	}
+
+	return users, nil
+
 }
