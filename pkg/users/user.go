@@ -15,6 +15,14 @@ func (u *Users) GetUser(ctx context.Context, id string) (User, error) {
 
 }
 
+func (u *Users) PutUser(ctx context.Context, user User) (interface{}, error) {
+
+	res, err := u.InsertOne(ctx, user)
+
+	return res.InsertedID, err
+
+}
+
 func (u *Users) DeleteUser(ctx context.Context, id string) (bool, error) {
 
 	res, err := u.DeleteOne(ctx, bson.D{{"_id", id}})

@@ -18,12 +18,12 @@ func NewUsers(c *mongo.Collection) *Users {
 
 type User struct {
 	ID         string                `json:"id" bson:"_id"`
-	FirstName  string                `json:"firstName" bson:"firstName"`
-	LastName   string                `json:"lastName" bson:"lastName"`
-	Email      string                `json:"email" bson:"email"`
-	Bio        string                `json:"bio" bson:"bio"`
-	Challenges []string              `json:"challenges" bson:"challenges"`
-	Activities []activities.Activity `json:"activities" bson:"activities"`
+	FirstName  string                `json:"firstName,omitempty" bson:"firstName"`
+	LastName   string                `json:"lastName,omitempty" bson:"lastName"`
+	Email      string                `json:"email,omitempty" bson:"email"`
+	Bio        string                `json:"bio,omitempty" bson:"bio"`
+	Challenges []string              `json:"challenges,omitempty" bson:"challenges"`
+	Activities []activities.Activity `json:"activities,omitempty" bson:"activities"`
 }
 
 func (u *Users) GetUsers(ctx context.Context) ([]User, error) {
