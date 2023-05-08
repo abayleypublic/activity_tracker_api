@@ -46,6 +46,9 @@ func (a *API) PatchUser(req typhon.Request) typhon.Response {
 	}
 
 	bb, err := req.BodyBytes(true)
+	if err != nil {
+		return a.Error(req, terrors.NotFound("", err.Error(), nil))
+	}
 
 	su, err := a.users.GetUser(req.Context, id)
 	if err != nil {
@@ -58,7 +61,14 @@ func (a *API) PatchUser(req typhon.Request) typhon.Response {
 	}
 
 	b, err := jsonpatch.CreateMergePatch(subb, bb)
+	if err != nil {
+		return a.Error(req, terrors.NotFound("", err.Error(), nil))
+	}
+
 	newUser, err := jsonpatch.CreateMergePatch(subb, b)
+	if err != nil {
+		return a.Error(req, terrors.NotFound("", err.Error(), nil))
+	}
 
 	var user users.User
 	if err = json.Unmarshal(newUser, &user); err != nil {
