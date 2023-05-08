@@ -4,29 +4,48 @@ import (
 	"context"
 
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 func (u *Users) GetUser(ctx context.Context, id string) (User, error) {
 
-	var user User
-	err := u.FindOne(ctx, bson.D{{"_id", id}}).Decode(&user)
+	oid, err := primitive.ObjectIDFromHex(id)
 
-	return user, err
+	if err != nil {
+		return User{}, err
+	}
+
+	var user User
+	if err := u.FindOne(ctx, bson.D{{Key: "_id", Value: oid}}).Decode(&user); err != nil {
+		return User{}, err
+	}
+
+	return user, nil
 
 }
 
-func (u *Users) PutUser(ctx context.Context, user User) (interface{}, error) {
+func (u *Users) PutUser(ctx context.Context, user User) error {
 
-	res, err := u.InsertOne(ctx, user)
+	_, err := u.InsertOne(ctx, user)
 
-	return res.InsertedID, err
+	return err
 
 }
 
 func (u *Users) DeleteUser(ctx context.Context, id string) (bool, error) {
 
-	res, err := u.DeleteOne(ctx, bson.D{{"_id", id}})
+	oid, err := primitive.ObjectIDFromHex(id)
 
-	return res.DeletedCount == 0, err
+	if err != nil {
+		return false, err
+	}
+
+	res, err := u.DeleteOne(ctx, bson.D{{Key: "_id", Value: oid}})
+
+	if err != nil {
+		return false, err
+	}
+
+	return res.DeletedCount == 0, nil
 
 }

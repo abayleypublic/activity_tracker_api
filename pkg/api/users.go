@@ -65,8 +65,7 @@ func (a *API) PatchUser(req typhon.Request) typhon.Response {
 		return a.Error(req, terrors.BadRequest("", "error unmarshalling user", nil))
 	}
 
-	_, err = a.users.PutUser(req.Context, user)
-	if err != nil {
+	if err = a.users.PutUser(req.Context, user); err != nil {
 		return a.Error(req, terrors.BadRequest("", "error decoding user", nil))
 	}
 
@@ -85,8 +84,7 @@ func (a *API) DeleteUser(req typhon.Request) typhon.Response {
 		return a.Error(req, terrors.BadRequest("", "id not supplied", nil))
 	}
 
-	_, err := a.users.DeleteUser(req.Context, id)
-	if err != nil {
+	if _, err := a.users.DeleteUser(req.Context, id); err != nil {
 		return a.Error(req, terrors.NotFound("", err.Error(), nil))
 	}
 
@@ -102,8 +100,7 @@ func (a *API) PutUser(req typhon.Request) typhon.Response {
 	}
 
 	var user users.User
-	err := req.Decode(user)
-	if err != nil {
+	if err := req.Decode(&user); err != nil {
 		return a.Error(req, terrors.BadRequest("", "error decoding user", nil))
 	}
 
@@ -111,9 +108,7 @@ func (a *API) PutUser(req typhon.Request) typhon.Response {
 		return a.Error(req, terrors.BadRequest("", "user ID does not equal path ID", nil))
 	}
 
-	_, err = a.users.PutUser(req.Context, user)
-
-	if err != nil {
+	if err := a.users.PutUser(req.Context, user); err != nil {
 		return a.Error(req, terrors.BadRequest("", err.Error(), nil))
 	}
 

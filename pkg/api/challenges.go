@@ -1,22 +1,56 @@
 package api
 
-import "github.com/monzo/typhon"
+import (
+	"fmt"
+	"net/http"
+
+	"github.com/AustinBayley/activity_tracker_api/pkg/challenges"
+	"github.com/monzo/terrors"
+	"github.com/monzo/typhon"
+)
 
 func (a *API) GetChallenges(req typhon.Request) typhon.Response {
 
-	return req.Response("OK")
+	c, err := a.challenges.GetChallenges(req.Context)
+	if err != nil {
+		return a.Error(req, terrors.NotFound("", err.Error(), nil))
+	}
+
+	return req.Response(c)
 
 }
 
 func (a *API) GetChallenge(req typhon.Request) typhon.Response {
 
-	return req.Response("OK")
+	id, ok := a.Params(req)["id"]
+	if !ok {
+		return a.Error(req, terrors.BadRequest("", "id not supplied", nil))
+	}
+
+	c, err := a.challenges.GetChallenge(req.Context, id)
+	if err != nil {
+		return a.Error(req, terrors.NotFound("", err.Error(), nil))
+	}
+
+	return req.Response(c)
 
 }
 
 func (a *API) PostChallenge(req typhon.Request) typhon.Response {
 
-	return req.Response("OK")
+	var challenge challenges.Challenge
+	if err := req.Decode(&challenge); err != nil {
+		fmt.Println(err)
+		return a.Error(req, terrors.BadRequest("", "error decoding challenge", nil))
+	}
+
+	id, err := a.challenges.PostChallenge(req.Context, challenge)
+
+	if err != nil {
+		return a.Error(req, terrors.BadRequest("", err.Error(), nil))
+	}
+
+	return req.Response(id)
 
 }
 
@@ -28,7 +62,16 @@ func (a *API) PatchChallenge(req typhon.Request) typhon.Response {
 
 func (a *API) DeleteChallenge(req typhon.Request) typhon.Response {
 
-	return req.Response("OK")
+	id, ok := a.Params(req)["id"]
+	if !ok {
+		return a.Error(req, terrors.BadRequest("", "id not supplied", nil))
+	}
+
+	if _, err := a.challenges.DeleteChallenge(req.Context, id); err != nil {
+		return a.Error(req, terrors.NotFound("", err.Error(), nil))
+	}
+
+	return req.ResponseWithCode(nil, http.StatusOK)
 
 }
 

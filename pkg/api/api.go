@@ -90,7 +90,7 @@ func (a *API) Start() {
 	a.DELETE("/challenges/:id/members/:userID", addFilters(a.DeleteMember, []typhon.Filter{}))
 
 	// User routes
-	a.GET("/users", addFilters(a.GetUsers, []typhon.Filter{a.AdminAuthFilter}))
+	a.GET("/users", addFilters(a.GetUsers, []typhon.Filter{}))
 	a.GET("/users/:id", addFilters(a.GetUser, []typhon.Filter{}))
 	a.PATCH("/users/:id", addFilters(a.PatchUser, []typhon.Filter{}))
 	a.DELETE("/users/:id", addFilters(a.DeleteUser, []typhon.Filter{}))
