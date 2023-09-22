@@ -12,6 +12,12 @@ func NewActivities(c *mongo.Collection) *Activities {
 	return &Activities{c}
 }
 
+type ActivityName string
+
+const (
+	Running ActivityName = "running"
+)
+
 type Activity struct {
-	Name string
+	Name ActivityName `json:"name" bson:"name"`
 }

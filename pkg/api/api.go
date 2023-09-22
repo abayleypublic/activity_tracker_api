@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -66,13 +67,15 @@ func (a *API) Start() {
 
 	// Get health of service
 	a.GET("/health", func(req typhon.Request) typhon.Response {
-		return req.Response("OK")
-	})
 
-	// Activity Routes
-	a.GET("/activities", addFilters(a.GetActivities, []typhon.Filter{}))
-	a.PUT("/challenges/:id", addFilters(a.PutActivity, []typhon.Filter{}))
-	a.DELETE("/challenges/:id", addFilters(a.DeleteActivity, []typhon.Filter{}))
+		// Test Mongodb connection
+		err := a.db.Client().Ping(req.Context, nil)
+		if err != nil {
+			return req.ResponseWithCode(err, http.StatusServiceUnavailable)
+		}
+
+		return req.ResponseWithCode(nil, http.StatusNoContent)
+	})
 
 	// Admin Routes
 	a.GET("/admin/:id", addFilters(a.GetAdmin, []typhon.Filter{}))
@@ -85,7 +88,6 @@ func (a *API) Start() {
 	a.GET("/challenges/:id", addFilters(a.GetChallenge, []typhon.Filter{}))
 	a.DELETE("/challenges/:id", addFilters(a.DeleteChallenge, []typhon.Filter{}))
 	a.PATCH("/challenges/:id", addFilters(a.PatchChallenge, []typhon.Filter{}))
-	a.GET("/challenges/:id/members", addFilters(a.GetMembers, []typhon.Filter{}))
 	a.PUT("/challenges/:id/members/:userID", addFilters(a.PutMember, []typhon.Filter{}))
 	a.DELETE("/challenges/:id/members/:userID", addFilters(a.DeleteMember, []typhon.Filter{}))
 
@@ -109,7 +111,6 @@ func (a *API) Start() {
 		Filter(Logging)
 
 	defer func() {
-
 		log.Printf("Shutting down database connection")
 
 		if err := a.db.Client().Disconnect(context.TODO()); err != nil {

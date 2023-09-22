@@ -3,15 +3,18 @@ package challenges
 import (
 	"context"
 
+	"github.com/AustinBayley/activity_tracker_api/pkg/uuid"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-func (c *Challenges) GetChallenge(ctx context.Context, id string) (Challenge, error) {
+// GetChallenge retrieves a challenge from the database using the provided ID.
+// It returns the retrieved challenge and any error encountered during the operation.
+func (c *Challenges) GetChallenge(ctx context.Context, id uuid.ID) (Challenge, error) {
 
 	var challenge Challenge
 
-	oid, err := primitive.ObjectIDFromHex(id)
+	oid, err := uuid.ConvertID(id)
 
 	if err != nil {
 		return Challenge{}, err
@@ -25,22 +28,25 @@ func (c *Challenges) GetChallenge(ctx context.Context, id string) (Challenge, er
 
 }
 
-func (c *Challenges) PostChallenge(ctx context.Context, challenge Challenge) (primitive.ObjectID, error) {
+// PostChallenge adds a new challenge to the database.
+// It returns the ID of the newly inserted challenge and any error encountered during the operation.
+func (c *Challenges) PostChallenge(ctx context.Context, challenge Challenge) (uuid.ID, error) {
 
 	res, err := c.InsertOne(ctx, challenge)
 
 	if err != nil {
-		return primitive.ObjectID{}, err
+		return "", err
 	}
 
-	return res.InsertedID.(primitive.ObjectID), nil
+	return uuid.ID(res.InsertedID.(primitive.ObjectID).String()), nil
 
 }
 
-func (c *Challenges) DeleteChallenge(ctx context.Context, id string) (bool, error) {
+// DeleteChallenge removes a challenge from the database using the provided ID.
+// It returns a boolean indicating whether the deletion was successful and any error encountered during the operation.
+func (c *Challenges) DeleteChallenge(ctx context.Context, id uuid.ID) (bool, error) {
 
-	oid, err := primitive.ObjectIDFromHex(id)
-
+	oid, err := uuid.ConvertID(id)
 	if err != nil {
 		return false, err
 	}
@@ -51,6 +57,6 @@ func (c *Challenges) DeleteChallenge(ctx context.Context, id string) (bool, erro
 		return false, err
 	}
 
-	return res.DeletedCount == 0, nil
+	return res.DeletedCount == 1, nil
 
 }

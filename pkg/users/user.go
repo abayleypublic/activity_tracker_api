@@ -3,14 +3,16 @@ package users
 import (
 	"context"
 
+	"github.com/AustinBayley/activity_tracker_api/pkg/uuid"
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-func (u *Users) GetUser(ctx context.Context, id string) (User, error) {
+// GetUser retrieves a user from the database using the provided ID.
+// It first converts the ID to an ObjectID, then attempts to find a user with that ID in the database.
+// If the user is found, it is returned. If not, an error is returned.
+func (u *Users) GetUser(ctx context.Context, id uuid.ID) (User, error) {
 
-	oid, err := primitive.ObjectIDFromHex(id)
-
+	oid, err := uuid.ConvertID(id)
 	if err != nil {
 		return User{}, err
 	}
@@ -21,31 +23,31 @@ func (u *Users) GetUser(ctx context.Context, id string) (User, error) {
 	}
 
 	return user, nil
-
 }
 
+// PutUser inserts a new user into the database.
+// It takes a User object as input and inserts it into the database.
+// If the operation is successful, it returns nil. If not, it returns the error.
 func (u *Users) PutUser(ctx context.Context, user User) error {
-
 	_, err := u.InsertOne(ctx, user)
-
 	return err
-
 }
 
-func (u *Users) DeleteUser(ctx context.Context, id string) (bool, error) {
+// DeleteUser removes a user from the database using the provided ID.
+// It first converts the ID to an ObjectID, then attempts to delete a user with that ID from the database.
+// If the operation is successful, it returns true. If not, it returns false and the error.
+func (u *Users) DeleteUser(ctx context.Context, id uuid.ID) (bool, error) {
 
-	oid, err := primitive.ObjectIDFromHex(id)
-
+	oid, err := uuid.ConvertID(id)
 	if err != nil {
 		return false, err
 	}
 
 	res, err := u.DeleteOne(ctx, bson.D{{Key: "_id", Value: oid}})
-
 	if err != nil {
 		return false, err
 	}
 
-	return res.DeletedCount == 0, nil
+	return res.DeletedCount == 1, nil
 
 }

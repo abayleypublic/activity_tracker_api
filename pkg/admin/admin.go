@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/AustinBayley/activity_tracker_api/pkg/auth"
+	"github.com/AustinBayley/activity_tracker_api/pkg/uuid"
 )
 
 type Admin struct {
@@ -16,9 +17,9 @@ func NewAdmin(auth *auth.Auth) *Admin {
 	}
 }
 
-func (a *Admin) GetAdmin(ctx context.Context, id string) (bool, error) {
+func (a *Admin) GetAdmin(ctx context.Context, id uuid.ID) (bool, error) {
 
-	user, err := a.auth.GetUser(ctx, id)
+	user, err := a.auth.GetUser(ctx, string(id))
 	if err != nil {
 		return false, err
 	}
@@ -31,10 +32,10 @@ func (a *Admin) GetAdmin(ctx context.Context, id string) (bool, error) {
 
 }
 
-func (a *Admin) SetAdmin(ctx context.Context, id string, admin bool) error {
+func (a *Admin) SetAdmin(ctx context.Context, id uuid.ID, admin bool) error {
 
 	claims := map[string]interface{}{"admin": admin}
-	if err := a.auth.SetCustomUserClaims(ctx, id, claims); err != nil {
+	if err := a.auth.SetCustomUserClaims(ctx, string(id), claims); err != nil {
 		return err
 	}
 

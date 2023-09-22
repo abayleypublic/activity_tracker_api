@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/AustinBayley/activity_tracker_api/pkg/users"
+	"github.com/AustinBayley/activity_tracker_api/pkg/uuid"
 	jsonpatch "github.com/evanphx/json-patch/v5"
 	"github.com/monzo/terrors"
 	"github.com/monzo/typhon"
@@ -28,7 +29,7 @@ func (a *API) GetUser(req typhon.Request) typhon.Response {
 		return a.Error(req, terrors.BadRequest("", "id not supplied", nil))
 	}
 
-	u, err := a.users.GetUser(req.Context, id)
+	u, err := a.users.GetUser(req.Context, uuid.ID(id))
 	if err != nil {
 		return a.Error(req, terrors.NotFound("", err.Error(), nil))
 	}
@@ -50,7 +51,7 @@ func (a *API) PatchUser(req typhon.Request) typhon.Response {
 		return a.Error(req, terrors.NotFound("", err.Error(), nil))
 	}
 
-	su, err := a.users.GetUser(req.Context, id)
+	su, err := a.users.GetUser(req.Context, uuid.ID(id))
 	if err != nil {
 		return a.Error(req, terrors.NotFound("", err.Error(), nil))
 	}
@@ -94,7 +95,7 @@ func (a *API) DeleteUser(req typhon.Request) typhon.Response {
 		return a.Error(req, terrors.BadRequest("", "id not supplied", nil))
 	}
 
-	if _, err := a.users.DeleteUser(req.Context, id); err != nil {
+	if _, err := a.users.DeleteUser(req.Context, uuid.ID(id)); err != nil {
 		return a.Error(req, terrors.NotFound("", err.Error(), nil))
 	}
 
@@ -109,12 +110,14 @@ func (a *API) PutUser(req typhon.Request) typhon.Response {
 		return a.Error(req, terrors.BadRequest("", "id not supplied", nil))
 	}
 
+	userID := uuid.ID(id)
+
 	var user users.User
 	if err := req.Decode(&user); err != nil {
 		return a.Error(req, terrors.BadRequest("", "error decoding user", nil))
 	}
 
-	if id != user.ID {
+	if userID != user.ID {
 		return a.Error(req, terrors.BadRequest("", "user ID does not equal path ID", nil))
 	}
 
