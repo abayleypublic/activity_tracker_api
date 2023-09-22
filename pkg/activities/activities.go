@@ -12,12 +12,26 @@ func NewActivities(c *mongo.Collection) *Activities {
 	return &Activities{c}
 }
 
-type ActivityName string
+type ActivityType string
 
 const (
-	Running ActivityName = "running"
+	Any      ActivityType = "any"
+	Walking  ActivityType = "walking"
+	Running  ActivityType = "running"
+	Swimming ActivityType = "swimming"
+	Cycling  ActivityType = "cycling"
+)
+
+var (
+	Moving map[ActivityType]struct{} = map[ActivityType]struct{}{
+		Walking:  {},
+		Running:  {},
+		Swimming: {},
+		Cycling:  {},
+	}
 )
 
 type Activity struct {
-	Name ActivityName `json:"name" bson:"name"`
+	Type  ActivityType `json:"name" bson:"name"`
+	Value float64      `json:"value" bson:"value"`
 }

@@ -29,6 +29,7 @@ type PartialChallenge struct {
 	EndDate     string  `json:"endDate" bson:"endDate"`
 	Public      bool    `json:"public" bson:"public"`
 	InviteOnly  bool    `json:"inviteOnly" bson:"inviteOnly"`
+	Target      Target  `json:"target" bson:"target"`
 }
 
 // Challenge represents a full challenge, including its members.
