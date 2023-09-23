@@ -13,7 +13,7 @@ import (
 
 func (a *API) GetUsers(req typhon.Request) typhon.Response {
 
-	u, err := a.users.GetUsers(req.Context)
+	u, err := a.users.ReadUsers(req.Context)
 	if err != nil {
 		return a.Error(req, err)
 	}
@@ -29,7 +29,7 @@ func (a *API) GetUser(req typhon.Request) typhon.Response {
 		return a.Error(req, terrors.BadRequest("", "id not supplied", nil))
 	}
 
-	u, err := a.users.GetUser(req.Context, uuid.ID(id))
+	u, err := a.users.ReadUser(req.Context, uuid.ID(id))
 	if err != nil {
 		return a.Error(req, terrors.NotFound("", err.Error(), nil))
 	}
@@ -51,7 +51,7 @@ func (a *API) PatchUser(req typhon.Request) typhon.Response {
 		return a.Error(req, terrors.NotFound("", err.Error(), nil))
 	}
 
-	su, err := a.users.GetUser(req.Context, uuid.ID(id))
+	su, err := a.users.ReadUser(req.Context, uuid.ID(id))
 	if err != nil {
 		return a.Error(req, terrors.NotFound("", err.Error(), nil))
 	}
@@ -76,7 +76,7 @@ func (a *API) PatchUser(req typhon.Request) typhon.Response {
 		return a.Error(req, terrors.BadRequest("", "error unmarshalling user", nil))
 	}
 
-	if err = a.users.PutUser(req.Context, user); err != nil {
+	if err = a.users.CreateOrUpdateUser(req.Context, user); err != nil {
 		return a.Error(req, terrors.BadRequest("", "error decoding user", nil))
 	}
 
@@ -121,7 +121,7 @@ func (a *API) PutUser(req typhon.Request) typhon.Response {
 		return a.Error(req, terrors.BadRequest("", "user ID does not equal path ID", nil))
 	}
 
-	if err := a.users.PutUser(req.Context, user); err != nil {
+	if err := a.users.CreateOrUpdateUser(req.Context, user); err != nil {
 		return a.Error(req, terrors.BadRequest("", err.Error(), nil))
 	}
 

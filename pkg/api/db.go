@@ -2,14 +2,11 @@ package api
 
 import (
 	"context"
+	"log"
 	"time"
 
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-)
-
-const (
-	dbName string = "activity-tracker"
 )
 
 func NewDB(cfg Config) *mongo.Database {
@@ -20,8 +17,8 @@ func NewDB(cfg Config) *mongo.Database {
 
 	client, err := mongo.Connect(ctx, options.Client().ApplyURI(cfg.MongodbURI))
 	if err != nil {
-		panic(err)
+		log.Fatalln(err)
 	}
 
-	return client.Database(dbName)
+	return client.Database(cfg.DBName)
 }

@@ -1,4 +1,4 @@
-package challenges
+package targets
 
 import (
 	"math"
@@ -7,18 +7,20 @@ import (
 	"googlemaps.github.io/maps"
 )
 
-type Progress interface {
-	Percentage() float64
-}
+var (
+	_ Target   = (*RouteMovingTarget)(nil)
+	_ Progress = (*RouteMovingTargetProgress)(nil)
+)
 
-type Target interface {
-	Evaluate([]activities.Activity) Progress
-}
+const (
+	RouteMovingTargetType TargetType = "routeMovingTarget"
+)
 
 type Route maps.Route
+type LatLng maps.LatLng
 type Location struct {
-	LatLng maps.LatLng `json:"latlng" bson:"latlng"`
-	Name   string      `json:"name" bson:"name"`
+	LatLng LatLng `json:"latlng" bson:"latlng"`
+	Name   string `json:"name" bson:"name"`
 }
 
 type RouteMovingTargetProgress struct {
@@ -31,10 +33,16 @@ func (r RouteMovingTargetProgress) Percentage() float64 {
 }
 
 type RouteMovingTarget struct {
+	BaseTarget
 	Route Route `json:"route" bson:"route"`
 }
 
-func (t *RouteMovingTarget) Evaluate(acts []activities.Activity) RouteMovingTargetProgress {
+func (t *RouteMovingTarget) Type() TargetType {
+	return RouteMovingTargetType
+}
+
+// TODO - implement this
+func (t *RouteMovingTarget) Evaluate(acts []activities.Activity) Progress {
 
 	// Distance is the distance travelled by the user
 	var distance float64 = 0
@@ -61,7 +69,7 @@ func (t *RouteMovingTarget) Evaluate(acts []activities.Activity) RouteMovingTarg
 				return RouteMovingTargetProgress{
 					Progress: math.Max(10.0, 100.0),
 					Location: Location{
-						LatLng: maps.LatLng{Lat: lat, Lng: lng},
+						LatLng: LatLng(maps.LatLng{Lat: lat, Lng: lng}),
 						Name:   "Aberdream",
 					},
 				}
@@ -72,7 +80,7 @@ func (t *RouteMovingTarget) Evaluate(acts []activities.Activity) RouteMovingTarg
 	return RouteMovingTargetProgress{
 		Progress: 100.0,
 		Location: Location{
-			LatLng: maps.LatLng{Lat: lat, Lng: lng},
+			LatLng: LatLng(maps.LatLng{Lat: 0, Lng: 0}),
 			Name:   "Aberdream",
 		},
 	}

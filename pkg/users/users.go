@@ -36,9 +36,9 @@ type User struct {
 	Activities  []activities.Activity `json:"activities,omitempty" bson:"activities"`
 }
 
-// GetUsers retrieves all users from the MongoDB collection.
+// ReadUsers retrieves all users from the MongoDB collection.
 // It returns a slice of PartialUser instances and any error encountered.
-func (u *Users) GetUsers(ctx context.Context) ([]PartialUser, error) {
+func (u *Users) ReadUsers(ctx context.Context) ([]PartialUser, error) {
 
 	cur, err := u.Find(ctx, bson.D{})
 	if err != nil {

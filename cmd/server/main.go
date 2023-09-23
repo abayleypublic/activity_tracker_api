@@ -20,6 +20,7 @@ const (
 
 const (
 	projectID string = "542135123656"
+	dbName    string = "activity-tracker"
 )
 
 type MongoCredentials struct {
@@ -87,7 +88,7 @@ func main() {
 		panic(err)
 	}
 
-	cfg := api.NewConfig(mongoURI, port, projectID)
+	cfg := api.NewConfig(mongoURI, dbName, port, projectID)
 
 	a, err := api.NewAPI(cfg)
 

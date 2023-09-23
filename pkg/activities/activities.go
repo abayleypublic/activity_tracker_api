@@ -1,6 +1,7 @@
 package activities
 
 import (
+	"github.com/AustinBayley/activity_tracker_api/pkg/uuid"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -31,7 +32,9 @@ var (
 	}
 )
 
+// TODO - initialise ID via a New function
 type Activity struct {
+	ID    uuid.ID      `json:"id" bson:"_id"`
 	Type  ActivityType `json:"name" bson:"name"`
 	Value float64      `json:"value" bson:"value"`
 }
