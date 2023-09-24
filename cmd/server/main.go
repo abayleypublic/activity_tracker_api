@@ -88,15 +88,10 @@ func main() {
 
 	ctx := context.Background()
 
-	secretsClient, err := secretmanager.NewClient(ctx)
-	if err != nil {
-		log.Fatalf("failed to setup secrets client: %v", err)
-	}
-
-	mapsCreds, err := getMapsCredentials(ctx, secretsClient)
-	if err != nil {
-		log.Fatalf("failed to get maps credentials: %v", err)
-	}
+	// mapsCreds, err := getMapsCredentials(ctx, secretsClient)
+	// if err != nil {
+	// 	log.Fatalf("failed to get maps credentials: %v", err)
+	// }
 
 	var mongoURI string
 	switch env {
@@ -107,22 +102,27 @@ func main() {
 	// 	}
 	// 	mongoUri = fmt.Sprintf("mongodb+srv://%s:%s@activity-tracker-stg.ur4pqgv.mongodb.net/?retryWrites=true&w=majority", creds.username, creds.password)
 	case PROD:
+		secretsClient, err := secretmanager.NewClient(ctx)
+		if err != nil {
+			log.Fatalf("failed to setup secrets client: %v", err)
+		}
+
 		dbCreds, err := getMongoCredentials(ctx, secretsClient)
 		if err != nil {
 			log.Fatalf("failed to get db credentials: %v", err)
 		}
+		secretsClient.Close()
 		mongoURI = fmt.Sprintf("mongodb+srv://%s:%s@activity-tracker.ur4pqgv.mongodb.net/?retryWrites=true&w=majority", dbCreds.username, dbCreds.password)
 	default:
 		mongoURI = os.Getenv("MONGODB_URI")
 	}
-	secretsClient.Close()
 
 	port, err := strconv.Atoi(os.Getenv("PORT"))
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	cfg := api.NewConfig(mongoURI, dbName, port, projectID, mapsCreds.key)
+	cfg := api.NewConfig(mongoURI, dbName, port, projectID, "test")
 
 	a, err := api.NewAPI(cfg)
 

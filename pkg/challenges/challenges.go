@@ -53,7 +53,7 @@ func (c *PartialChallengeWithTarget) UnmarshalJSON(b []byte) error {
 
 	type RawChallenge struct {
 		PartialChallenge
-		Target interface{} `json:"target"`
+		Target targets.BaseTarget `json:"target"`
 	}
 
 	// Parse rawMessage
@@ -61,23 +61,18 @@ func (c *PartialChallengeWithTarget) UnmarshalJSON(b []byte) error {
 	if err := json.Unmarshal(b, rawChallenge); err != nil {
 		return err
 	}
+	c.PartialChallenge = rawChallenge.PartialChallenge
 
-	rawTarget, ok := rawChallenge.Target.(targets.BaseTarget)
-	if !ok {
-		return ErrInvalidTarget
-	}
-
-	c = &PartialChallengeWithTarget{
-		PartialChallenge: rawChallenge.PartialChallenge,
-	}
-
-	switch rawTarget.Type() {
+	switch rawChallenge.Target.Type() {
 	case targets.RouteMovingTargetType:
-		target, ok := rawChallenge.Target.(targets.RouteMovingTarget)
-		if !ok {
-			return ErrParseTarget
+		type RouteMovingTargetChallenge struct {
+			Target targets.RouteMovingTarget `json:"target"`
 		}
-		c.Target = &target
+		targetChallenge := &RouteMovingTargetChallenge{}
+		if err := json.Unmarshal(b, targetChallenge); err != nil {
+			return err
+		}
+		c.Target = &targetChallenge.Target
 	default:
 		return ErrInvalidTarget
 	}
