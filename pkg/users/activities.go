@@ -12,9 +12,9 @@ import (
 // It returns a slice of activities and an error if any occurred.
 func (u *Users) GetUserActivities(ctx context.Context, id uuid.ID) ([]activities.Activity, error) {
 
-	var user User
+	user := User{}
 	if err := u.FindOne(ctx, bson.D{{Key: "_id", Value: id}}).Decode(&user); err != nil {
-		return nil, err
+		return user.Activities, err
 	}
 
 	return user.Activities, nil

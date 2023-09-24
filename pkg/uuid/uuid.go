@@ -10,3 +10,7 @@ type ID string
 func ConvertID(id ID) (primitive.ObjectID, error) {
 	return primitive.ObjectIDFromHex(string(id))
 }
+
+func NewID() ID {
+	return ID(primitive.NewObjectID().Hex())
+}

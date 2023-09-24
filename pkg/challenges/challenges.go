@@ -90,19 +90,18 @@ type Challenge struct {
 	Members []Member `json:"members" bson:"members"`
 }
 
-// GetChallenges retrieves all challenges from the MongoDB collection.
+// ReadChallenges retrieves all challenges from the MongoDB collection.
 // It returns a slice of PartialChallenge and an error if there is any.
-func (c *Challenges) GetChallenges(ctx context.Context) ([]PartialChallenge, error) {
-
-	var challenges []PartialChallenge
+func (c *Challenges) ReadChallenges(ctx context.Context) ([]PartialChallenge, error) {
 
 	cur, err := c.Find(ctx, bson.D{})
 	if err != nil {
 		return nil, err
 	}
 
+	var challenges []PartialChallenge
 	if err = cur.All(ctx, &challenges); err != nil {
-		return nil, err
+		return challenges, err
 	}
 
 	return challenges, err

@@ -114,13 +114,13 @@ func (a *API) Start() {
 		log.Printf("Shutting down database connection")
 
 		if err := a.db.Client().Disconnect(context.TODO()); err != nil {
-			panic(err)
+			log.Fatalln(err)
 		}
 	}()
 
 	srv, err := typhon.Listen(svc, fmt.Sprintf(":%d", a.cfg.Port), typhon.WithTimeout(typhon.TimeoutOptions{Read: time.Second * 10}))
 	if err != nil {
-		panic(err)
+		log.Fatalln(err)
 	}
 	log.Printf("👋  Listening on %v", srv.Listener().Addr())
 

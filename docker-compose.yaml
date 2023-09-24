@@ -1,7 +1,7 @@
 version: "1"
 services:
   api:
-    build: .
+    build: ./Dockerfile-local
     env_file:
       - .env
     ports:
@@ -13,5 +13,3 @@ services:
     image: mongo
     ports:
       - "27017:27017"
-    # volumes:
-    #   - ./data:/data/db:rw

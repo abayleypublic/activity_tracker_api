@@ -17,9 +17,9 @@ func (u *Users) ReadUser(ctx context.Context, id uuid.ID) (User, error) {
 		return User{}, err
 	}
 
-	var user User
+	user := User{}
 	if err := u.FindOne(ctx, bson.D{{Key: "_id", Value: oid}}).Decode(&user); err != nil {
-		return User{}, err
+		return user, err
 	}
 
 	return user, nil

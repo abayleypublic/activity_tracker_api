@@ -12,7 +12,7 @@ import (
 
 func (a *API) GetChallenges(req typhon.Request) typhon.Response {
 
-	c, err := a.challenges.GetChallenges(req.Context)
+	c, err := a.challenges.ReadChallenges(req.Context)
 	if err != nil {
 		return a.Error(req, terrors.NotFound("", err.Error(), nil))
 	}
@@ -28,7 +28,7 @@ func (a *API) GetChallenge(req typhon.Request) typhon.Response {
 		return a.Error(req, terrors.BadRequest("", "id not supplied", nil))
 	}
 
-	c, err := a.challenges.GetChallenge(req.Context, uuid.ID(id))
+	c, err := a.challenges.ReadChallenge(req.Context, uuid.ID(id))
 	if err != nil {
 		return a.Error(req, terrors.NotFound("", err.Error(), nil))
 	}
@@ -45,7 +45,7 @@ func (a *API) PostChallenge(req typhon.Request) typhon.Response {
 		return a.Error(req, terrors.BadRequest("", "error decoding challenge", nil))
 	}
 
-	id, err := a.challenges.PostChallenge(req.Context, challenge)
+	id, err := a.challenges.CreateChallenge(req.Context, challenge)
 
 	if err != nil {
 		return a.Error(req, terrors.BadRequest("", err.Error(), nil))
@@ -88,7 +88,7 @@ func (a *API) PutMember(req typhon.Request) typhon.Response {
 		return a.Error(req, terrors.BadRequest("", "user ID not supplied", nil))
 	}
 
-	res, err := a.challenges.PutMember(req.Context, uuid.ID(id), uuid.ID(userID))
+	res, err := a.challenges.AddMember(req.Context, uuid.ID(id), uuid.ID(userID))
 	if err != nil {
 		return a.Error(req, terrors.BadRequest("", err.Error(), nil))
 	}

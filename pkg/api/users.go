@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/AustinBayley/activity_tracker_api/pkg/activities"
 	"github.com/AustinBayley/activity_tracker_api/pkg/users"
 	"github.com/AustinBayley/activity_tracker_api/pkg/uuid"
 	jsonpatch "github.com/evanphx/json-patch/v5"
@@ -143,7 +144,24 @@ func (a *API) GetUserActivity(req typhon.Request) typhon.Response {
 
 func (a *API) PostUserActivity(req typhon.Request) typhon.Response {
 
-	return req.Response("OK")
+	id, ok := a.Params(req)["id"]
+	if !ok {
+		return a.Error(req, terrors.BadRequest("", "id not supplied", nil))
+	}
+
+	userID := uuid.ID(id)
+
+	var activity activities.Activity
+	if err := req.Decode(&activity); err != nil {
+		return a.Error(req, terrors.BadRequest("", "error decoding activity", nil))
+	}
+
+	res, err := a.users.CreateUserActivity(req.Context, userID, activity)
+	if err != nil {
+		return a.Error(req, terrors.BadRequest("", err.Error(), nil))
+	}
+
+	return req.Response(res)
 
 }
 
@@ -155,12 +173,41 @@ func (a *API) PatchUserActivity(req typhon.Request) typhon.Response {
 
 func (a *API) DeleteUserActivity(req typhon.Request) typhon.Response {
 
-	return req.Response("OK")
+	id, ok := a.Params(req)["id"]
+	if !ok {
+		return a.Error(req, terrors.BadRequest("", "user ID not supplied", nil))
+	}
+
+	aid, ok := a.Params(req)["activityID"]
+	if !ok {
+		return a.Error(req, terrors.BadRequest("", "activity ID not supplied", nil))
+	}
+
+	userID := uuid.ID(id)
+	activityID := uuid.ID(aid)
+
+	if _, err := a.users.DeleteUserActivity(req.Context, uuid.ID(userID), activityID); err != nil {
+		return a.Error(req, terrors.NotFound("", err.Error(), nil))
+	}
+
+	return req.ResponseWithCode(nil, http.StatusNoContent)
 
 }
 
 func (a *API) GetUserActivities(req typhon.Request) typhon.Response {
 
-	return req.Response("OK")
+	id, ok := a.Params(req)["id"]
+	if !ok {
+		return a.Error(req, terrors.BadRequest("", "user ID not supplied", nil))
+	}
+
+	userID := uuid.ID(id)
+
+	as, err := a.users.GetUserActivities(req.Context, uuid.ID(userID))
+	if err != nil {
+		return a.Error(req, terrors.NotFound("", err.Error(), nil))
+	}
+
+	return req.Response(as)
 
 }

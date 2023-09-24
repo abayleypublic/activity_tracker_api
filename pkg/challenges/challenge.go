@@ -8,11 +8,9 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-// GetChallenge retrieves a challenge from the database using the provided ID.
+// ReadChallenge retrieves a challenge from the database using the provided ID.
 // It returns the retrieved challenge and any error encountered during the operation.
-func (c *Challenges) GetChallenge(ctx context.Context, id uuid.ID) (Challenge, error) {
-
-	var challenge Challenge
+func (c *Challenges) ReadChallenge(ctx context.Context, id uuid.ID) (Challenge, error) {
 
 	oid, err := uuid.ConvertID(id)
 
@@ -20,17 +18,18 @@ func (c *Challenges) GetChallenge(ctx context.Context, id uuid.ID) (Challenge, e
 		return Challenge{}, err
 	}
 
+	challenge := Challenge{}
 	if err = c.FindOne(ctx, bson.D{{Key: "_id", Value: oid}}).Decode(&challenge); err != nil {
-		return Challenge{}, err
+		return challenge, err
 	}
 
 	return challenge, err
 
 }
 
-// PostChallenge adds a new challenge to the database.
+// CreateChallenge adds a new challenge to the database.
 // It returns the ID of the newly inserted challenge and any error encountered during the operation.
-func (c *Challenges) PostChallenge(ctx context.Context, challenge Challenge) (uuid.ID, error) {
+func (c *Challenges) CreateChallenge(ctx context.Context, challenge Challenge) (uuid.ID, error) {
 
 	res, err := c.InsertOne(ctx, challenge)
 

@@ -12,14 +12,14 @@ import (
 )
 
 // TODO - implement
-func (u *Users) ReadUserActivity(ctx context.Context, id uuid.ID) (activities.Activity, error) {
+func (u *Users) ReadUserActivity(ctx context.Context, id uuid.ID, aID uuid.ID) (activities.Activity, error) {
 
-	var user User
-	if err := u.FindOne(ctx, bson.D{{Key: "_id", Value: id}}).Decode(&user); err != nil {
-		return activities.Activity{}, err
+	activity := activities.Activity{}
+	if err := u.FindOne(ctx, bson.D{{Key: "_id", Value: id}, {Key: "activities._id", Value: aID}}).Decode(&activity); err != nil {
+		return activity, err
 	}
 
-	return user.Activities[0], nil
+	return activity, nil
 
 }
 
@@ -51,7 +51,7 @@ func (u *Users) CreateUserActivity(ctx context.Context, userID uuid.ID, activity
 	result, err := u.UpdateOne(ctx, bson.D{{Key: "_id", Value: uid}}, bson.D{{Key: "$push", Value: bson.D{{Key: "activities", Value: activity}}}})
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
-			return "", errors.New("document not found")
+			return "", errors.New("user not found")
 		}
 		return "", err
 	}
@@ -77,7 +77,7 @@ func (u *Users) DeleteUserActivity(ctx context.Context, userID uuid.ID, activity
 	result, err := u.UpdateOne(ctx, bson.D{{Key: "_id", Value: uid}}, bson.D{{Key: "$pull", Value: bson.D{{Key: "activities._id", Value: aid}}}})
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
-			return false, errors.New("document not found")
+			return false, errors.New("user not found")
 		}
 		return false, err
 	}

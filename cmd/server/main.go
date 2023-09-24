@@ -85,7 +85,7 @@ func main() {
 
 	port, err := strconv.Atoi(os.Getenv("PORT"))
 	if err != nil {
-		panic(err)
+		log.Fatalln(err)
 	}
 
 	cfg := api.NewConfig(mongoURI, dbName, port, projectID)
@@ -93,7 +93,7 @@ func main() {
 	a, err := api.NewAPI(cfg)
 
 	if err != nil {
-		panic(err)
+		log.Fatalln(err)
 	}
 
 	a.Start()

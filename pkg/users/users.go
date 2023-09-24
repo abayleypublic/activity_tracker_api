@@ -47,7 +47,7 @@ func (u *Users) ReadUsers(ctx context.Context) ([]PartialUser, error) {
 
 	users := []PartialUser{}
 	if err = cur.All(ctx, &users); err != nil {
-		return nil, err
+		return users, err
 	}
 
 	return users, nil

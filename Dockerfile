@@ -1,10 +1,14 @@
-FROM golang:1.20.3-alpine
+FROM golang:1.20.3-alpine as builder
 
 WORKDIR /app
 
-RUN go install github.com/cosmtrek/air@latest
-
-COPY go.mod go.sum ./
+COPY . .
 RUN go mod download
 
-CMD ["air", "-c", "air.toml"]
+RUN GOOS=linux GOARCH=amd64 go build -o /activity-tracker-api ./cmd/server/main.go
+
+FROM scratch
+
+COPY --from=builder /activity-tracker-api /activity-tracker-api
+
+ENTRYPOINT ["/activity-tracker-api"]

@@ -23,8 +23,10 @@ const (
 	Cycling  ActivityType = "cycling"
 )
 
+type ActivityCategory map[ActivityType]struct{}
+
 var (
-	Moving map[ActivityType]struct{} = map[ActivityType]struct{}{
+	Moving = ActivityCategory{
 		Walking:  {},
 		Running:  {},
 		Swimming: {},
@@ -37,4 +39,12 @@ type Activity struct {
 	ID    uuid.ID      `json:"id" bson:"_id"`
 	Type  ActivityType `json:"name" bson:"name"`
 	Value float64      `json:"value" bson:"value"`
+}
+
+func New(Type ActivityType, Value float64) Activity {
+	return Activity{
+		ID:    uuid.NewID(),
+		Type:  Type,
+		Value: Value,
+	}
 }
