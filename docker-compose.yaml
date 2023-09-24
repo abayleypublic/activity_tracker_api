@@ -1,7 +1,9 @@
 version: "1"
 services:
   api:
-    build: ./Dockerfile-local
+    build: 
+      context: ./
+      dockerfile: ./local.dockerfile
     env_file:
       - .env
     ports:
