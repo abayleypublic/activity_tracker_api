@@ -1,6 +1,10 @@
 package targets
 
-import "github.com/AustinBayley/activity_tracker_api/pkg/activities"
+import (
+	"context"
+
+	"github.com/AustinBayley/activity_tracker_api/pkg/activities"
+)
 
 type TargetType string
 
@@ -15,7 +19,7 @@ type Target interface {
 	// Type returns the type of target, e.g. "routeMovingTarget"
 	Type() TargetType
 	// Evaluate evaluates the given activities and returns the progress towards the target.
-	Evaluate([]activities.Activity) Progress
+	Evaluate(context.Context, []activities.Activity) (Progress, error)
 }
 
 type BaseTarget struct {

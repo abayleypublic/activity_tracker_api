@@ -14,9 +14,11 @@ import (
 	"github.com/AustinBayley/activity_tracker_api/pkg/admin"
 	"github.com/AustinBayley/activity_tracker_api/pkg/auth"
 	"github.com/AustinBayley/activity_tracker_api/pkg/challenges"
+	"github.com/AustinBayley/activity_tracker_api/pkg/locations"
 	"github.com/AustinBayley/activity_tracker_api/pkg/users"
 	"github.com/monzo/typhon"
 	"go.mongodb.org/mongo-driver/mongo"
+	"googlemaps.github.io/maps"
 )
 
 type API struct {
@@ -32,17 +34,22 @@ type API struct {
 
 func NewAPI(cfg Config) (*API, error) {
 
-	db := NewDB(cfg)
+	db := NewDB(cfg.MongodbURI, cfg.DBName)
+	users := users.NewUsers(db.Collection("users"))
+	challenges := challenges.NewChallenges(db.Collection("challenges"))
+	activities := activities.NewActivities(db.Collection("activities"))
 
 	auth, err := auth.NewAuth(cfg.ProjectID)
 	if err != nil {
 		return nil, err
 	}
-
 	admin := admin.NewAdmin(auth)
-	users := users.NewUsers(db.Collection("users"))
-	challenges := challenges.NewChallenges(db.Collection("challenges"))
-	activities := activities.NewActivities(db.Collection("activities"))
+
+	c, err := maps.NewClient(maps.WithAPIKey(cfg.MapsAPIKey))
+	if err != nil {
+		return nil, err
+	}
+	_ = locations.NewLocations(c)
 
 	return &API{
 		typhon.Router{},
@@ -67,20 +74,23 @@ func (a *API) Start() {
 
 	// Get health of service
 	a.GET("/health", func(req typhon.Request) typhon.Response {
-
 		// Test Mongodb connection
 		err := a.db.Client().Ping(req.Context, nil)
 		if err != nil {
 			return req.ResponseWithCode(err, http.StatusServiceUnavailable)
 		}
 
+		if i := locations.Initialised(); !i {
+			return req.ResponseWithCode(nil, http.StatusServiceUnavailable)
+		}
+
 		return req.ResponseWithCode(nil, http.StatusNoContent)
 	})
 
 	// Admin Routes
-	a.GET("/admin/:id", addFilters(a.GetAdmin, []typhon.Filter{}))
-	a.PUT("/admin/:id", addFilters(a.PutAdmin, []typhon.Filter{}))
-	a.DELETE("/admin/:id", addFilters(a.DeleteAdmin, []typhon.Filter{}))
+	a.GET("/admin/:userID", addFilters(a.GetAdmin, []typhon.Filter{a.ValidUserFilter}))
+	a.PUT("/admin/:userID", addFilters(a.PutAdmin, []typhon.Filter{a.ValidUserFilter}))
+	a.DELETE("/admin/:userID", addFilters(a.DeleteAdmin, []typhon.Filter{a.ValidUserFilter}))
 
 	// Challenges Routes
 	a.GET("/challenges", addFilters(a.GetChallenges, []typhon.Filter{}))
@@ -88,20 +98,21 @@ func (a *API) Start() {
 	a.GET("/challenges/:id", addFilters(a.GetChallenge, []typhon.Filter{}))
 	a.DELETE("/challenges/:id", addFilters(a.DeleteChallenge, []typhon.Filter{}))
 	a.PATCH("/challenges/:id", addFilters(a.PatchChallenge, []typhon.Filter{}))
-	a.PUT("/challenges/:id/members/:userID", addFilters(a.PutMember, []typhon.Filter{}))
-	a.DELETE("/challenges/:id/members/:userID", addFilters(a.DeleteMember, []typhon.Filter{}))
+	a.PUT("/challenges/:id/members/:userID", addFilters(a.PutMember, []typhon.Filter{a.ValidUserFilter}))
+	a.DELETE("/challenges/:id/members/:userID", addFilters(a.DeleteMember, []typhon.Filter{a.ValidUserFilter}))
 
 	// User routes
 	a.GET("/users", addFilters(a.GetUsers, []typhon.Filter{}))
-	a.GET("/users/:id", addFilters(a.GetUser, []typhon.Filter{}))
-	a.PATCH("/users/:id", addFilters(a.PatchUser, []typhon.Filter{}))
-	a.DELETE("/users/:id", addFilters(a.DeleteUser, []typhon.Filter{}))
-	a.PUT("/users/:id", addFilters(a.PutUser, []typhon.Filter{}))
-	a.GET("/users/:id/activities", addFilters(a.GetUserActivities, []typhon.Filter{}))
-	a.POST("/users/:id/activities", addFilters(a.PostUserActivity, []typhon.Filter{}))
-	a.GET("/users/:id/activities/:activityID", addFilters(a.GetUserActivity, []typhon.Filter{}))
-	a.PATCH("/users/:id/activities/:activityID", addFilters(a.PatchUserActivity, []typhon.Filter{}))
-	a.DELETE("/users/:id/activities/:activityID", addFilters(a.DeleteUserActivity, []typhon.Filter{}))
+	a.GET("/users/:userID", addFilters(a.GetUser, []typhon.Filter{}))
+	a.PATCH("/users/:userID", addFilters(a.PatchUser, []typhon.Filter{a.ValidUserFilter}))
+	a.DELETE("/users/:userID", addFilters(a.DeleteUser, []typhon.Filter{a.ValidUserFilter}))
+	// Because this method will only run once, a valid user filter is not required as it will not change other than via patch or delete requests
+	a.PUT("/users/:userID", addFilters(a.PutUser, []typhon.Filter{}))
+	a.GET("/users/:userID/activities", addFilters(a.GetUserActivities, []typhon.Filter{}))
+	a.POST("/users/:userID/activities", addFilters(a.PostUserActivity, []typhon.Filter{a.ValidUserFilter}))
+	a.GET("/users/:userID/activities/:activityID", addFilters(a.GetUserActivity, []typhon.Filter{}))
+	a.PATCH("/users/:userID/activities/:activityID", addFilters(a.PatchUserActivity, []typhon.Filter{a.ValidUserFilter}))
+	a.DELETE("/users/:userID/activities/:activityID", addFilters(a.DeleteUserActivity, []typhon.Filter{a.ValidUserFilter}))
 
 	// Make sure body filtering and logging go last!
 	svc := a.Serve().
@@ -113,7 +124,7 @@ func (a *API) Start() {
 	defer func() {
 		log.Printf("Shutting down database connection")
 
-		if err := a.db.Client().Disconnect(context.TODO()); err != nil {
+		if err := a.db.Client().Disconnect(context.Background()); err != nil {
 			log.Fatalln(err)
 		}
 	}()

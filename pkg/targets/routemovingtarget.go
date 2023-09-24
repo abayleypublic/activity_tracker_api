@@ -1,9 +1,11 @@
 package targets
 
 import (
+	"context"
 	"math"
 
 	"github.com/AustinBayley/activity_tracker_api/pkg/activities"
+	"github.com/AustinBayley/activity_tracker_api/pkg/locations"
 	"googlemaps.github.io/maps"
 )
 
@@ -17,15 +19,10 @@ const (
 )
 
 type Route maps.Route
-type LatLng maps.LatLng
-type Location struct {
-	LatLng LatLng `json:"latlng" bson:"latlng"`
-	Name   string `json:"name" bson:"name"`
-}
 
 type RouteMovingTargetProgress struct {
-	Progress float64  `json:"progress" bson:"progress"`
-	Location Location `json:"location" bson:"location"`
+	Progress float64            `json:"progress" bson:"progress"`
+	Location locations.Location `json:"location" bson:"location"`
 }
 
 func (r RouteMovingTargetProgress) Percentage() float64 {
@@ -41,8 +38,7 @@ func (t *RouteMovingTarget) Type() TargetType {
 	return RouteMovingTargetType
 }
 
-// TODO - implement this
-func (t *RouteMovingTarget) Evaluate(acts []activities.Activity) Progress {
+func (t *RouteMovingTarget) Evaluate(ctx context.Context, acts []activities.Activity) (Progress, error) {
 
 	// Distance is the distance travelled by the user
 	var distance float64 = 0
@@ -62,27 +58,32 @@ func (t *RouteMovingTarget) Evaluate(acts []activities.Activity) Progress {
 			// Check if the total distance has been reached
 			if distanceSum >= distance {
 				distanceDiff := distanceSum - distance
-				fraction := distanceDiff / stepDistance
-				lat := step.StartLocation.Lat + (step.EndLocation.Lat-step.StartLocation.Lat)*fraction
-				lng := step.StartLocation.Lng + (step.EndLocation.Lng-step.StartLocation.Lng)*fraction
+				fraction := (distanceDiff / stepDistance) * 100
+
+				latlng := locations.LatLng(step.StartLocation)
+				loc, err := locations.LocationFromLatLng(ctx, latlng)
+				if err != nil {
+					return nil, err
+				}
 
 				return RouteMovingTargetProgress{
-					Progress: math.Max(10.0, 100.0),
-					Location: Location{
-						LatLng: LatLng(maps.LatLng{Lat: lat, Lng: lng}),
-						Name:   "Aberdream",
-					},
-				}
+					Progress: math.Max(fraction, 100.0),
+					Location: loc,
+				}, nil
 			}
 		}
 	}
 
+	lastLeg := t.Route.Legs[len(t.Route.Legs)-1]
+	latlng := locations.LatLng(lastLeg.EndLocation)
+	loc, err := locations.LocationFromLatLng(ctx, latlng)
+	if err != nil {
+		return nil, err
+	}
+
 	return RouteMovingTargetProgress{
 		Progress: 100.0,
-		Location: Location{
-			LatLng: LatLng(maps.LatLng{Lat: 0, Lng: 0}),
-			Name:   "Aberdream",
-		},
-	}
+		Location: loc,
+	}, nil
 
 }

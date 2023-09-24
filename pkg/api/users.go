@@ -25,7 +25,7 @@ func (a *API) GetUsers(req typhon.Request) typhon.Response {
 
 func (a *API) GetUser(req typhon.Request) typhon.Response {
 
-	id, ok := a.Params(req)["id"]
+	id, ok := a.Params(req)["userID"]
 	if !ok {
 		return a.Error(req, terrors.BadRequest("", "id not supplied", nil))
 	}
@@ -47,7 +47,7 @@ func (a *API) GetUser(req typhon.Request) typhon.Response {
 func (a *API) PatchUser(req typhon.Request) typhon.Response {
 
 	// Get user ID
-	id, ok := a.Params(req)["id"]
+	id, ok := a.Params(req)["userID"]
 	if !ok {
 		return a.Error(req, terrors.BadRequest("", "id not supplied", nil))
 	}
@@ -91,7 +91,7 @@ func (a *API) PatchUser(req typhon.Request) typhon.Response {
 	}
 
 	// Update user
-	if err = a.users.CreateOrUpdateUser(req.Context, user); err != nil {
+	if err = a.users.UpdateUser(req.Context, user); err != nil {
 		return a.Error(req, terrors.BadRequest("", "error decoding user", nil))
 	}
 
@@ -101,7 +101,7 @@ func (a *API) PatchUser(req typhon.Request) typhon.Response {
 
 func (a *API) DeleteUser(req typhon.Request) typhon.Response {
 
-	id, ok := a.Params(req)["id"]
+	id, ok := a.Params(req)["userID"]
 	if !ok {
 		return a.Error(req, terrors.BadRequest("", "id not supplied", nil))
 	}
@@ -116,7 +116,7 @@ func (a *API) DeleteUser(req typhon.Request) typhon.Response {
 
 func (a *API) PutUser(req typhon.Request) typhon.Response {
 
-	id, ok := a.Params(req)["id"]
+	id, ok := a.Params(req)["userID"]
 	if !ok {
 		return a.Error(req, terrors.BadRequest("", "id not supplied", nil))
 	}
@@ -132,7 +132,7 @@ func (a *API) PutUser(req typhon.Request) typhon.Response {
 		return a.Error(req, terrors.BadRequest("", "user ID does not equal path ID", nil))
 	}
 
-	if err := a.users.CreateOrUpdateUser(req.Context, user); err != nil {
+	if err := a.users.CreateUser(req.Context, user); err != nil {
 		return a.Error(req, terrors.BadRequest("", err.Error(), nil))
 	}
 
@@ -148,7 +148,7 @@ func (a *API) DownloadUserData(req typhon.Request) typhon.Response {
 
 func (a *API) GetUserActivity(req typhon.Request) typhon.Response {
 
-	id, ok := a.Params(req)["id"]
+	id, ok := a.Params(req)["userID"]
 	if !ok {
 		return a.Error(req, terrors.BadRequest("", "user ID not supplied", nil))
 	}
@@ -172,7 +172,7 @@ func (a *API) GetUserActivity(req typhon.Request) typhon.Response {
 
 func (a *API) PostUserActivity(req typhon.Request) typhon.Response {
 
-	id, ok := a.Params(req)["id"]
+	id, ok := a.Params(req)["userID"]
 	if !ok {
 		return a.Error(req, terrors.BadRequest("", "id not supplied", nil))
 	}
@@ -196,7 +196,7 @@ func (a *API) PostUserActivity(req typhon.Request) typhon.Response {
 func (a *API) PatchUserActivity(req typhon.Request) typhon.Response {
 
 	// Get user ID
-	id, ok := a.Params(req)["id"]
+	id, ok := a.Params(req)["userID"]
 	if !ok {
 		return a.Error(req, terrors.BadRequest("", "id not supplied", nil))
 	}
@@ -258,7 +258,7 @@ func (a *API) PatchUserActivity(req typhon.Request) typhon.Response {
 
 func (a *API) DeleteUserActivity(req typhon.Request) typhon.Response {
 
-	id, ok := a.Params(req)["id"]
+	id, ok := a.Params(req)["userID"]
 	if !ok {
 		return a.Error(req, terrors.BadRequest("", "user ID not supplied", nil))
 	}
@@ -281,7 +281,7 @@ func (a *API) DeleteUserActivity(req typhon.Request) typhon.Response {
 
 func (a *API) GetUserActivities(req typhon.Request) typhon.Response {
 
-	id, ok := a.Params(req)["id"]
+	id, ok := a.Params(req)["userID"]
 	if !ok {
 		return a.Error(req, terrors.BadRequest("", "user ID not supplied", nil))
 	}

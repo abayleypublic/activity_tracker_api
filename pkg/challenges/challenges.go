@@ -40,8 +40,8 @@ type BaseChallenge struct {
 // PartialChallenge builds on BaseChallenge by adding the creator and target fields.
 type PartialChallenge struct {
 	BaseChallenge
-	CreatedBy   string `json:"createdBy" bson:"createdBy"`
-	CreatedDate string `json:"createdDate" bson:"createdDate"`
+	CreatedBy   uuid.ID `json:"createdBy" bson:"createdBy"`
+	CreatedDate string  `json:"createdDate" bson:"createdDate"`
 }
 
 type PartialChallengeWithTarget struct {

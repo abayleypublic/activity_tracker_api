@@ -28,36 +28,51 @@ type MongoCredentials struct {
 	password string
 }
 
-func getMongoCredentials() (*MongoCredentials, error) {
+type MapsCredentials struct {
+	key string
+}
 
-	// Create the client.
-	ctx := context.Background()
-	secretsClient, err := secretmanager.NewClient(ctx)
-	if err != nil {
-		log.Fatalf("failed to setup client: %v", err)
-		return nil, err
+func getSecret(ctx context.Context, secrets *secretmanager.Client, key string, version *string) (*secretmanagerpb.AccessSecretVersionResponse, error) {
+
+	var v string
+	if version == nil {
+		v = "latest"
+	} else {
+		v = *version
 	}
-	defer secretsClient.Close()
 
-	// Get username
 	accessRequest := &secretmanagerpb.AccessSecretVersionRequest{
-		Name: fmt.Sprintf("projects/%s/secrets/dbUsername/versions/latest", projectID),
+		Name: fmt.Sprintf("projects/%s/secrets/%s/versions/%s", projectID, key, v),
 	}
 
-	dbUsername, err := secretsClient.AccessSecretVersion(ctx, accessRequest)
+	secret, err := secrets.AccessSecretVersion(ctx, accessRequest)
 	if err != nil {
-		log.Fatalf("failed to access secret version: %v", err)
 		return nil, err
 	}
 
-	// Get password
-	accessRequest = &secretmanagerpb.AccessSecretVersionRequest{
-		Name: fmt.Sprintf("projects/%s/secrets/dbPassword/versions/latest", projectID),
+	return secret, nil
+}
+
+func getMapsCredentials(ctx context.Context, secrets *secretmanager.Client) (*MapsCredentials, error) {
+	secret, err := getSecret(ctx, secrets, "mapsKey", nil)
+	if err != nil {
+		return nil, err
 	}
 
-	dbPassword, err := secretsClient.AccessSecretVersion(ctx, accessRequest)
+	return &MapsCredentials{
+		key: string(secret.Payload.Data),
+	}, nil
+}
+
+func getMongoCredentials(ctx context.Context, secrets *secretmanager.Client) (*MongoCredentials, error) {
+
+	dbUsername, err := getSecret(ctx, secrets, "dbUsername", nil)
 	if err != nil {
-		log.Fatalf("failed to access secret version: %v", err)
+		return nil, err
+	}
+
+	dbPassword, err := getSecret(ctx, secrets, "dbPassword", nil)
+	if err != nil {
 		return nil, err
 	}
 
@@ -71,24 +86,43 @@ func main() {
 
 	env := os.Getenv("ENVIRONMENT")
 
+	ctx := context.Background()
+
+	secretsClient, err := secretmanager.NewClient(ctx)
+	if err != nil {
+		log.Fatalf("failed to setup secrets client: %v", err)
+	}
+
+	mapsCreds, err := getMapsCredentials(ctx, secretsClient)
+	if err != nil {
+		log.Fatalf("failed to get maps credentials: %v", err)
+	}
+
 	var mongoURI string
 	switch env {
 	// case STG:
-	// 	creds, _ := getMongoCredentials()
+	// 	dbCreds, err := getMongoCredentials()
+	// 	if err != nil {
+	// 		log.Fatalf("failed to get db credentials: %v", err)
+	// 	}
 	// 	mongoUri = fmt.Sprintf("mongodb+srv://%s:%s@activity-tracker-stg.ur4pqgv.mongodb.net/?retryWrites=true&w=majority", creds.username, creds.password)
 	case PROD:
-		creds, _ := getMongoCredentials()
-		mongoURI = fmt.Sprintf("mongodb+srv://%s:%s@activity-tracker.ur4pqgv.mongodb.net/?retryWrites=true&w=majority", creds.username, creds.password)
+		dbCreds, err := getMongoCredentials(ctx, secretsClient)
+		if err != nil {
+			log.Fatalf("failed to get db credentials: %v", err)
+		}
+		mongoURI = fmt.Sprintf("mongodb+srv://%s:%s@activity-tracker.ur4pqgv.mongodb.net/?retryWrites=true&w=majority", dbCreds.username, dbCreds.password)
 	default:
 		mongoURI = os.Getenv("MONGODB_URI")
 	}
+	secretsClient.Close()
 
 	port, err := strconv.Atoi(os.Getenv("PORT"))
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	cfg := api.NewConfig(mongoURI, dbName, port, projectID)
+	cfg := api.NewConfig(mongoURI, dbName, port, projectID, mapsCreds.key)
 
 	a, err := api.NewAPI(cfg)
 

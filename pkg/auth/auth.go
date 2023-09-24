@@ -6,6 +6,7 @@ import (
 
 	firebase "firebase.google.com/go"
 	"firebase.google.com/go/auth"
+	"github.com/AustinBayley/activity_tracker_api/pkg/uuid"
 	"github.com/monzo/terrors"
 	"github.com/monzo/typhon"
 )
@@ -64,15 +65,39 @@ func (a *Auth) GetAuthToken(req typhon.Request) (string, error) {
 	return splitToken[1], nil
 }
 
+// GetToken verifies an ID token.
+// It returns a pointer to a Token and an error.
+func (a *Auth) GetToken(ctx context.Context, t string) (*Token, error) {
+
+	token, err := a.VerifyIDToken(ctx, t)
+	if err != nil {
+		return nil, terrors.Forbidden("", "error retrieving ID token", nil)
+	}
+
+	res := Token(*token)
+	return &res, nil
+}
+
 // GetValidToken verifies an ID token and checks if it has been revoked.
 // It returns a pointer to a Token and an error.
-func (a *Auth) GetValidToken(t string) (*Token, error) {
+func (a *Auth) GetValidToken(ctx context.Context, t string) (*Token, error) {
 
-	token, err := a.VerifyIDTokenAndCheckRevoked(context.Background(), t)
+	token, err := a.VerifyIDTokenAndCheckRevoked(ctx, t)
 	if err != nil {
 		return nil, terrors.Forbidden("", "error verifying ID token", nil)
 	}
 
 	res := Token(*token)
 	return &res, nil
+}
+
+func (a *Auth) GetUserID(ctx context.Context, token Token) uuid.ID {
+	return uuid.ID(token.UID)
+}
+
+func (a *Auth) IsAdmin(token Token) bool {
+	if admin, ok := token.Claims["admin"]; ok {
+		return admin.(bool)
+	}
+	return false
 }

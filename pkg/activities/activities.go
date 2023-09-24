@@ -34,7 +34,6 @@ var (
 	}
 )
 
-// TODO - initialise ID via a New function
 type Activity struct {
 	ID    uuid.ID      `json:"id" bson:"_id"`
 	Type  ActivityType `json:"name" bson:"name"`
