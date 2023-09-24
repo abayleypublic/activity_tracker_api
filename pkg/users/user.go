@@ -5,6 +5,7 @@ import (
 
 	"github.com/AustinBayley/activity_tracker_api/pkg/uuid"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // ReadUser retrieves a user from the database using the provided ID.
@@ -29,7 +30,8 @@ func (u *Users) ReadUser(ctx context.Context, id uuid.ID) (User, error) {
 // It takes a User object as input and inserts it into the database.
 // If the operation is successful, it returns nil. If not, it returns the error.
 func (u *Users) CreateOrUpdateUser(ctx context.Context, user User) error {
-	_, err := u.InsertOne(ctx, user)
+	opts := options.Update().SetUpsert(true)
+	_, err := u.UpdateOne(ctx, bson.D{{Key: "$set", Value: user}}, opts)
 	return err
 }
 

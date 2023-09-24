@@ -39,53 +39,63 @@ func (a *API) GetUser(req typhon.Request) typhon.Response {
 
 }
 
-// I have no idea whether this will work
+// PatchUser updates an existing user with the given ID using a JSON merge patch.
+// The request body should contain a JSON merge patch that describes the changes to be made to the user.
+// Returns a 400 Bad Request error if the ID is not supplied or if there is an error decoding the user.
+// Returns a 404 Not Found error if the user with the given ID does not exist or if there is an error marshalling or unmarshalling the user.
+// Returns a 204 No Content response if the user is successfully updated.
 func (a *API) PatchUser(req typhon.Request) typhon.Response {
 
+	// Get user ID
 	id, ok := a.Params(req)["id"]
 	if !ok {
 		return a.Error(req, terrors.BadRequest("", "id not supplied", nil))
 	}
 
+	userID := uuid.ID(id)
+
+	// Get body & store as slice of bytes
 	bb, err := req.BodyBytes(true)
 	if err != nil {
 		return a.Error(req, terrors.NotFound("", err.Error(), nil))
 	}
 
-	su, err := a.users.ReadUser(req.Context, uuid.ID(id))
+	// Stored user
+	su, err := a.users.ReadUser(req.Context, userID)
 	if err != nil {
 		return a.Error(req, terrors.NotFound("", err.Error(), nil))
 	}
 
+	// Stored user as slice of bytes
 	subb, err := json.Marshal(su)
 	if err != nil {
 		return a.Error(req, terrors.NotFound("", "error marshalling stored user", nil))
 	}
 
-	b, err := jsonpatch.CreateMergePatch(subb, bb)
+	// Decode requested patch
+	patch, err := jsonpatch.DecodePatch(bb)
 	if err != nil {
-		return a.Error(req, terrors.NotFound("", err.Error(), nil))
+		return a.Error(req, terrors.BadRequest("", "could not decode request", nil))
 	}
 
-	newUser, err := jsonpatch.CreateMergePatch(subb, b)
+	// Apply patch to stored user to get modified document
+	modified, err := patch.Apply(subb)
 	if err != nil {
-		return a.Error(req, terrors.NotFound("", err.Error(), nil))
+		return a.Error(req, terrors.BadResponse("", "could not apply patch", nil))
 	}
 
+	// Unmarshal modified document into user struct
 	var user users.User
-	if err = json.Unmarshal(newUser, &user); err != nil {
+	if err = json.Unmarshal(modified, &user); err != nil {
 		return a.Error(req, terrors.BadRequest("", "error unmarshalling user", nil))
 	}
 
+	// Update user
 	if err = a.users.CreateOrUpdateUser(req.Context, user); err != nil {
 		return a.Error(req, terrors.BadRequest("", "error decoding user", nil))
 	}
 
-	if err != nil {
-		return a.Error(req, terrors.BadRequest("", err.Error(), nil))
-	}
-
-	return req.ResponseWithCode(nil, http.StatusNoContent)
+	return req.Response(user)
 
 }
 
@@ -138,7 +148,25 @@ func (a *API) DownloadUserData(req typhon.Request) typhon.Response {
 
 func (a *API) GetUserActivity(req typhon.Request) typhon.Response {
 
-	return req.Response("OK")
+	id, ok := a.Params(req)["id"]
+	if !ok {
+		return a.Error(req, terrors.BadRequest("", "user ID not supplied", nil))
+	}
+
+	aid, ok := a.Params(req)["activityID"]
+	if !ok {
+		return a.Error(req, terrors.BadRequest("", "activity ID not supplied", nil))
+	}
+
+	userID := uuid.ID(id)
+	activityID := uuid.ID(aid)
+
+	res, err := a.users.ReadUserActivity(req.Context, userID, activityID)
+	if err != nil {
+		return a.Error(req, terrors.NotFound("", err.Error(), nil))
+	}
+
+	return req.Response(res)
 
 }
 
@@ -167,7 +195,64 @@ func (a *API) PostUserActivity(req typhon.Request) typhon.Response {
 
 func (a *API) PatchUserActivity(req typhon.Request) typhon.Response {
 
-	return req.Response("OK")
+	// Get user ID
+	id, ok := a.Params(req)["id"]
+	if !ok {
+		return a.Error(req, terrors.BadRequest("", "id not supplied", nil))
+	}
+
+	// Get activity ID
+	aid, ok := a.Params(req)["activityID"]
+	if !ok {
+		return a.Error(req, terrors.BadRequest("", "activity ID not supplied", nil))
+	}
+
+	userID := uuid.ID(id)
+	activityID := uuid.ID(aid)
+
+	// Get body & store as slice of bytes
+	bb, err := req.BodyBytes(true)
+	if err != nil {
+		return a.Error(req, terrors.NotFound("", err.Error(), nil))
+	}
+
+	// Stored activity
+	sa, err := a.users.ReadUserActivity(req.Context, userID, activityID)
+	if err != nil {
+		return a.Error(req, terrors.NotFound("", err.Error(), nil))
+	}
+
+	// Stored activity as slice of bytes
+	sabb, err := json.Marshal(sa)
+	if err != nil {
+		return a.Error(req, terrors.NotFound("", "error marshalling stored user", nil))
+	}
+
+	// Decode requested patch
+	patch, err := jsonpatch.DecodePatch(bb)
+	if err != nil {
+		return a.Error(req, terrors.BadRequest("", "could not decode request", nil))
+	}
+
+	// Apply patch to stored activity to get modified document
+	modified, err := patch.Apply(sabb)
+	if err != nil {
+		return a.Error(req, terrors.BadResponse("", "could not apply patch", nil))
+	}
+
+	// Unmarshal modified document into user struct
+	var activity activities.Activity
+	if err = json.Unmarshal(modified, &activity); err != nil {
+		return a.Error(req, terrors.BadRequest("", "error unmarshalling activity", nil))
+	}
+
+	// Update activity
+	res, err := a.users.UpdateUserActivity(req.Context, userID, activity)
+	if err != nil {
+		return a.Error(req, terrors.BadRequest("", "error decoding user", nil))
+	}
+
+	return req.Response(res)
 
 }
 
@@ -203,7 +288,7 @@ func (a *API) GetUserActivities(req typhon.Request) typhon.Response {
 
 	userID := uuid.ID(id)
 
-	as, err := a.users.GetUserActivities(req.Context, uuid.ID(userID))
+	as, err := a.users.ReadUserActivities(req.Context, uuid.ID(userID))
 	if err != nil {
 		return a.Error(req, terrors.NotFound("", err.Error(), nil))
 	}
