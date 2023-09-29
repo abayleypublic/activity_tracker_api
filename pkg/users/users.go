@@ -3,11 +3,18 @@ package users
 
 import (
 	"context"
+	"errors"
 
 	"github.com/AustinBayley/activity_tracker_api/pkg/activities"
 	"github.com/AustinBayley/activity_tracker_api/pkg/uuid"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
+)
+
+var (
+	ErrUserNotFound      = errors.New("user not found")
+	ErrResourceNotFound  = errors.New("resource not found")
+	ErrUserAlreadyExists = errors.New("user already exists")
 )
 
 // Users is a wrapper around a MongoDB collection of users.
@@ -29,7 +36,7 @@ type PartialUser struct {
 
 // User represents a full user with all fields, including activities.
 type User struct {
-	PartialUser
+	PartialUser `bson:",inline"`
 	CreatedDate string                `json:"createdDate" bson:"createdDate"`
 	Email       string                `json:"email,omitempty" bson:"email"`
 	Bio         string                `json:"bio,omitempty" bson:"bio"`

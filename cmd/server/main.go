@@ -12,10 +12,11 @@ import (
 	"github.com/AustinBayley/activity_tracker_api/pkg/api"
 )
 
+type Environment string
+
 const (
-	DEV  string = "dev"
-	STG  string = "stg"
-	PROD string = "prod"
+	DEV  Environment = "dev"
+	PROD Environment = "prod"
 )
 
 const (
@@ -84,45 +85,39 @@ func getMongoCredentials(ctx context.Context, secrets *secretmanager.Client) (*M
 
 func main() {
 
-	env := os.Getenv("ENVIRONMENT")
+	env := Environment(os.Getenv("ENVIRONMENT"))
 
 	ctx := context.Background()
 
-	// mapsCreds, err := getMapsCredentials(ctx, secretsClient)
-	// if err != nil {
-	// 	log.Fatalf("failed to get maps credentials: %v", err)
-	// }
+	secretsClient, err := secretmanager.NewClient(ctx)
+	if err != nil {
+		log.Fatalf("failed to setup secrets client: %v", err)
+	}
+
+	mapsCreds, err := getMapsCredentials(ctx, secretsClient)
+	if err != nil {
+		log.Fatalf("failed to get maps credentials: %v", err)
+	}
 
 	var mongoURI string
 	switch env {
-	// case STG:
-	// 	dbCreds, err := getMongoCredentials()
-	// 	if err != nil {
-	// 		log.Fatalf("failed to get db credentials: %v", err)
-	// 	}
-	// 	mongoUri = fmt.Sprintf("mongodb+srv://%s:%s@activity-tracker-stg.ur4pqgv.mongodb.net/?retryWrites=true&w=majority", creds.username, creds.password)
 	case PROD:
-		secretsClient, err := secretmanager.NewClient(ctx)
-		if err != nil {
-			log.Fatalf("failed to setup secrets client: %v", err)
-		}
-
 		dbCreds, err := getMongoCredentials(ctx, secretsClient)
 		if err != nil {
 			log.Fatalf("failed to get db credentials: %v", err)
 		}
-		secretsClient.Close()
 		mongoURI = fmt.Sprintf("mongodb+srv://%s:%s@activity-tracker.ur4pqgv.mongodb.net/?retryWrites=true&w=majority", dbCreds.username, dbCreds.password)
 	default:
 		mongoURI = os.Getenv("MONGODB_URI")
 	}
+	secretsClient.Close()
 
 	port, err := strconv.Atoi(os.Getenv("PORT"))
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	cfg := api.NewConfig(mongoURI, dbName, port, projectID, "test")
+	cfg := api.NewConfig(mongoURI, dbName, port, projectID, mapsCreds.key)
 
 	a, err := api.NewAPI(cfg)
 

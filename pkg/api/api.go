@@ -143,9 +143,3 @@ func (a *API) Start() {
 	defer cancel()
 	srv.Stop(c)
 }
-
-func (a *API) Error(req typhon.Request, err error) typhon.Response {
-	res := req.Response(err.Error())
-	res.Error = err
-	return res
-}

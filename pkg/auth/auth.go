@@ -2,12 +2,12 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"strings"
 
 	firebase "firebase.google.com/go"
 	"firebase.google.com/go/auth"
 	"github.com/AustinBayley/activity_tracker_api/pkg/uuid"
-	"github.com/monzo/terrors"
 	"github.com/monzo/typhon"
 )
 
@@ -20,6 +20,13 @@ type Auth struct {
 	ProjectID string
 }
 
+var (
+	errAuthClient       = errors.New("error getting auth client")
+	ErrTokenNotSupplied = errors.New("token not supplied")
+	ErrInvalidToken     = errors.New("invalid token")
+	ErrParsingToken     = errors.New("error parsing token")
+)
+
 // NewAuth initializes a new Auth struct. It takes a project ID as input and returns a pointer to an Auth struct and an error.
 func NewAuth(projectID string) (*Auth, error) {
 
@@ -30,13 +37,13 @@ func NewAuth(projectID string) (*Auth, error) {
 	// Create a new Firebase app with the provided project ID.
 	app, err := firebase.NewApp(context.Background(), cfg)
 	if err != nil {
-		return nil, terrors.InternalService("", "error getting auth client", nil)
+		return nil, errAuthClient
 	}
 
 	// Get the auth client from the Firebase app.
 	client, err := app.Auth(context.Background())
 	if err != nil {
-		return nil, terrors.BadRequest("", "error getting auth client", nil)
+		return nil, errAuthClient
 	}
 
 	// Return a new Auth struct.
@@ -53,13 +60,13 @@ func (a *Auth) GetAuthToken(req typhon.Request) (string, error) {
 
 	// If no token is supplied in the Authorization header, return error
 	if reqToken == "" {
-		return "", terrors.Unauthorized("", "token not supplied", nil)
+		return "", ErrTokenNotSupplied
 	}
 
 	splitToken := strings.Split(reqToken, "Bearer ")
 
 	if len(splitToken) != 2 {
-		return "", terrors.Forbidden("", "invalid token", nil)
+		return "", ErrInvalidToken
 	}
 
 	return splitToken[1], nil
@@ -71,7 +78,7 @@ func (a *Auth) GetToken(ctx context.Context, t string) (*Token, error) {
 
 	token, err := a.VerifyIDToken(ctx, t)
 	if err != nil {
-		return nil, terrors.Forbidden("", "error retrieving ID token", nil)
+		return nil, ErrInvalidToken
 	}
 
 	res := Token(*token)
@@ -84,7 +91,7 @@ func (a *Auth) GetValidToken(ctx context.Context, t string) (*Token, error) {
 
 	token, err := a.VerifyIDTokenAndCheckRevoked(ctx, t)
 	if err != nil {
-		return nil, terrors.Forbidden("", "error verifying ID token", nil)
+		return nil, ErrInvalidToken
 	}
 
 	res := Token(*token)

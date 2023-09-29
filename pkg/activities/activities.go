@@ -36,7 +36,7 @@ var (
 
 type Activity struct {
 	ID    uuid.ID      `json:"id" bson:"_id"`
-	Type  ActivityType `json:"name" bson:"name"`
+	Type  ActivityType `json:"type" bson:"type"`
 	Value float64      `json:"value" bson:"value"`
 }
 

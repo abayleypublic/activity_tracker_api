@@ -3,9 +3,9 @@ package api
 import (
 	"encoding/json"
 
+	"github.com/AustinBayley/activity_tracker_api/pkg/errs"
 	"github.com/AustinBayley/activity_tracker_api/pkg/uuid"
 	"github.com/monzo/slog"
-	"github.com/monzo/terrors"
 	"github.com/monzo/typhon"
 )
 
@@ -27,12 +27,12 @@ func (a *API) ValidAuthFilter(req typhon.Request, svc typhon.Service) typhon.Res
 
 	t, err := a.auth.GetAuthToken(req)
 	if err != nil {
-		return a.Error(req, err)
+		return errs.ForbiddenResponse(req, err.Error())
 	}
 
 	_, err = a.auth.GetValidToken(req.Context, t)
 	if err != nil {
-		return a.Error(req, err)
+		return errs.ForbiddenResponse(req, err.Error())
 	}
 
 	return svc(req)
@@ -43,16 +43,16 @@ func (a *API) AdminAuthFilter(req typhon.Request, svc typhon.Service) typhon.Res
 
 	t, err := a.auth.GetAuthToken(req)
 	if err != nil {
-		return a.Error(req, err)
+		return errs.UnauthorizedResponse(req, err.Error())
 	}
 
 	token, err := a.auth.GetValidToken(req.Context, t)
 	if err != nil {
-		return a.Error(req, err)
+		return errs.ForbiddenResponse(req, err.Error())
 	}
 
 	if admin := a.auth.IsAdmin(*token); !admin {
-		return a.Error(req, terrors.Unauthorized("", "user is not admin", nil))
+		return errs.ForbiddenResponse(req, "user is not authorized to perform this action")
 	}
 
 	return svc(req)
@@ -63,32 +63,27 @@ func (a *API) ValidUserFilter(req typhon.Request, svc typhon.Service) typhon.Res
 
 	id, ok := a.Params(req)["userID"]
 	if !ok {
-		return a.Error(req, terrors.BadRequest("", "could not determine target user", nil))
+		return errs.BadRequestResponse(req, "could not determine target user")
 	}
 	userID := uuid.ID(id)
 
 	t, err := a.auth.GetAuthToken(req)
 	if err != nil {
-		return a.Error(req, err)
+		return errs.UnauthorizedResponse(req, err.Error())
 	}
 
 	token, err := a.auth.GetToken(req.Context, t)
 	if err != nil {
-		return a.Error(req, err)
+		return errs.ForbiddenResponse(req, err.Error())
 	}
 
 	tokenSubject := a.auth.GetUserID(req.Context, *token)
 
 	if admin := a.auth.IsAdmin(*token); !admin && tokenSubject != userID {
-		return a.Error(req, terrors.Unauthorized("", "user is not authorized to perform this action", nil))
+		return errs.ForbiddenResponse(req, "user is not authorized to perform this action")
 	}
 
 	return svc(req)
-}
-
-type PartialTerror struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
 }
 
 func (a *API) BodyFilter(req typhon.Request, svc typhon.Service) typhon.Response {
@@ -98,7 +93,7 @@ func (a *API) BodyFilter(req typhon.Request, svc typhon.Service) typhon.Response
 	if res.Error != nil {
 		if res.Body != nil {
 			if b, err := res.BodyBytes(true); err == nil {
-				var err PartialTerror
+				var err errs.Error
 				json.Unmarshal(b, &err)
 				res.Encode(err)
 			}

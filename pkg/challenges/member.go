@@ -15,30 +15,24 @@ import (
 // Then it converts the challengeID and userID to a format suitable for the database.
 // It then attempts to update the challenge document in the database by adding the userID to the members field.
 // If the document is not found, it returns an error. If any other error occurs during the update, it is returned.
-func (c *Challenges) AddMember(ctx context.Context, challengeID uuid.ID, userID uuid.ID) (bool, error) {
+func (c *Challenges) AddMember(ctx context.Context, challengeID uuid.ID, userID uuid.ID) error {
 	if challengeID == "" || userID == "" {
-		return false, errors.New("challengeID and userID cannot be empty")
+		return errors.New("challengeID and userID cannot be empty")
 	}
 
-	cid, err := uuid.ConvertID(challengeID)
+	result, err := c.UpdateOne(ctx, bson.D{{Key: "_id", Value: challengeID}}, bson.D{{Key: "$push", Value: bson.D{{Key: "members", Value: userID}}}})
 	if err != nil {
-		return false, err
-	}
-
-	uid, err := uuid.ConvertID(userID)
-	if err != nil {
-		return false, err
-	}
-
-	result, err := c.UpdateOne(ctx, bson.D{{Key: "_id", Value: cid}}, bson.D{{Key: "$push", Value: bson.D{{Key: "members", Value: uid}}}})
-	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			return false, errors.New("document not found")
+		switch err {
+		case mongo.ErrNoDocuments:
+			return ErrResourceNotFound
 		}
-		return false, err
 	}
 
-	return result.ModifiedCount == 1, nil
+	if result.ModifiedCount != 1 {
+		return ErrResourceNotFound
+	}
+
+	return err
 }
 
 // DeleteMember removes a member from a challenge. It takes a context, a challengeID and a userID as parameters.
@@ -47,28 +41,22 @@ func (c *Challenges) AddMember(ctx context.Context, challengeID uuid.ID, userID 
 // Then it converts the challengeID and userID to a format suitable for the database.
 // It then attempts to update the challenge document in the database by removing the userID from the members field.
 // If the document is not found, it returns an error. If any other error occurs during the update, it is returned.
-func (c *Challenges) DeleteMember(ctx context.Context, challengeID uuid.ID, userID uuid.ID) (bool, error) {
+func (c *Challenges) DeleteMember(ctx context.Context, challengeID uuid.ID, userID uuid.ID) error {
 	if challengeID == "" || userID == "" {
-		return false, errors.New("challengeID and userID cannot be empty")
+		return errors.New("challengeID and userID cannot be empty")
 	}
 
-	cid, err := uuid.ConvertID(challengeID)
+	result, err := c.UpdateOne(ctx, bson.D{{Key: "_id", Value: challengeID}}, bson.D{{Key: "$pull", Value: bson.D{{Key: "members", Value: userID}}}})
 	if err != nil {
-		return false, err
-	}
-
-	uid, err := uuid.ConvertID(userID)
-	if err != nil {
-		return false, err
-	}
-
-	result, err := c.UpdateOne(ctx, bson.D{{Key: "_id", Value: cid}}, bson.D{{Key: "$pull", Value: bson.D{{Key: "members", Value: uid}}}})
-	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			return false, errors.New("document not found")
+		switch err {
+		case mongo.ErrNoDocuments:
+			return ErrResourceNotFound
 		}
-		return false, err
 	}
 
-	return result.ModifiedCount == 1, nil
+	if result.ModifiedCount != 1 {
+		return ErrResourceNotFound
+	}
+
+	return err
 }

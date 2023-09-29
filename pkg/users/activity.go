@@ -2,7 +2,6 @@ package users
 
 import (
 	"context"
-	"errors"
 
 	"github.com/AustinBayley/activity_tracker_api/pkg/activities"
 	"github.com/AustinBayley/activity_tracker_api/pkg/uuid"
@@ -23,10 +22,9 @@ func (u *Users) ReadUserActivity(ctx context.Context, id uuid.ID, aID uuid.ID) (
 
 }
 
-// TODO - implement
 func (u *Users) UpdateUserActivity(ctx context.Context, userID uuid.ID, activity activities.Activity) (activities.Activity, error) {
 
-	if _, err := u.DeleteUserActivity(ctx, userID, activity.ID); err != nil {
+	if err := u.DeleteUserActivity(ctx, userID, activity.ID); err != nil {
 		return activities.Activity{}, err
 	}
 
@@ -43,17 +41,14 @@ func (u *Users) UpdateUserActivity(ctx context.Context, userID uuid.ID, activity
 // It returns the id of the inserted activity and an error if any occurred.
 func (u *Users) CreateUserActivity(ctx context.Context, userID uuid.ID, activity activities.Activity) (uuid.ID, error) {
 
-	uid, err := uuid.ConvertID(userID)
+	result, err := u.UpdateOne(ctx, bson.D{{Key: "_id", Value: userID}}, bson.D{{Key: "$push", Value: bson.D{{Key: "activities", Value: activity}}}})
 	if err != nil {
-		return "", err
-	}
-
-	result, err := u.UpdateOne(ctx, bson.D{{Key: "_id", Value: uid}}, bson.D{{Key: "$push", Value: bson.D{{Key: "activities", Value: activity}}}})
-	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			return "", errors.New("user not found")
+		switch err {
+		case mongo.ErrNoDocuments:
+			return "", ErrUserNotFound
+		default:
+			return "", err
 		}
-		return "", err
 	}
 
 	return uuid.ID(result.UpsertedID.(primitive.ObjectID).String()), nil
@@ -62,26 +57,20 @@ func (u *Users) CreateUserActivity(ctx context.Context, userID uuid.ID, activity
 
 // DeleteUserActivity removes an activity with the given id from the user's activities.
 // It returns a boolean indicating whether the deletion was successful and an error if any occurred.
-func (u *Users) DeleteUserActivity(ctx context.Context, userID uuid.ID, activityID uuid.ID) (bool, error) {
+func (u *Users) DeleteUserActivity(ctx context.Context, userID uuid.ID, activityID uuid.ID) error {
 
-	uid, err := uuid.ConvertID(userID)
-	if err != nil {
-		return false, err
+	result, err := u.UpdateOne(ctx, bson.D{{Key: "_id", Value: userID}}, bson.D{{Key: "$pull", Value: bson.D{{Key: "activities._id", Value: activityID}}}})
+	if result.UpsertedCount != 1 {
+		return ErrResourceNotFound
 	}
 
-	aid, err := uuid.ConvertID(activityID)
 	if err != nil {
-		return false, err
-	}
-
-	result, err := u.UpdateOne(ctx, bson.D{{Key: "_id", Value: uid}}, bson.D{{Key: "$pull", Value: bson.D{{Key: "activities._id", Value: aid}}}})
-	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			return false, errors.New("user not found")
+		switch err {
+		case mongo.ErrNoDocuments:
+			return ErrUserNotFound
 		}
-		return false, err
 	}
 
-	return result.ModifiedCount == 1, nil
+	return err
 
 }

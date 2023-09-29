@@ -12,8 +12,9 @@ import (
 )
 
 var (
-	ErrInvalidTarget = errors.New("invalid target type")
-	ErrParseTarget   = errors.New("error parsing target")
+	ErrInvalidTarget     = errors.New("invalid target type")
+	ErrParseTarget       = errors.New("error parsing target")
+	ErrChallengeNotFound = errors.New("challenge not found")
 )
 
 // Challenges wraps a MongoDB collection of challenges.
@@ -39,14 +40,14 @@ type BaseChallenge struct {
 
 // PartialChallenge builds on BaseChallenge by adding the creator and target fields.
 type PartialChallenge struct {
-	BaseChallenge
-	CreatedBy   uuid.ID `json:"createdBy" bson:"createdBy"`
-	CreatedDate string  `json:"createdDate" bson:"createdDate"`
+	BaseChallenge `bson:",inline"`
+	CreatedBy     uuid.ID `json:"createdBy" bson:"createdBy"`
+	CreatedDate   string  `json:"createdDate" bson:"createdDate"`
 }
 
 type PartialChallengeWithTarget struct {
-	PartialChallenge
-	Target targets.Target `json:"target" bson:"target"`
+	PartialChallenge `bson:",inline"`
+	Target           targets.Target `json:"target" bson:"target"`
 }
 
 func (c *PartialChallengeWithTarget) UnmarshalJSON(b []byte) error {
@@ -81,8 +82,8 @@ func (c *PartialChallengeWithTarget) UnmarshalJSON(b []byte) error {
 
 // Challenge represents a full challenge, including its members.
 type Challenge struct {
-	PartialChallengeWithTarget
-	Members []Member `json:"members" bson:"members"`
+	PartialChallengeWithTarget `bson:",inline"`
+	Members                    []Member `json:"members" bson:"members"`
 }
 
 // ReadChallenges retrieves all challenges from the MongoDB collection.
