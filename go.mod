@@ -7,7 +7,6 @@ require (
 	firebase.google.com/go v3.13.0+incompatible
 	github.com/evanphx/json-patch/v5 v5.6.0
 	github.com/monzo/slog v0.0.0-20211123154010-52a5ddb2ba55
-	github.com/monzo/terrors v0.0.0-20230213115803-67faae2e06d7
 	github.com/monzo/typhon v1.1.7
 	go.mongodb.org/mongo-driver v1.11.4
 	googlemaps.github.io/maps v1.5.0
@@ -34,6 +33,7 @@ require (
 	github.com/klauspost/compress v1.13.6 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/montanaflynn/stats v0.0.0-20171201202039-1bf9dbcd8cbe // indirect
+	github.com/monzo/terrors v0.0.0-20230213115803-67faae2e06d7 //indirect
 	github.com/nu7hatch/gouuid v0.0.0-20131221200532-179d4d0c4d8d // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect

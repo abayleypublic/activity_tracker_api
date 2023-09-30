@@ -2,10 +2,11 @@
 package users
 
 import (
-	"context"
 	"errors"
 
 	"github.com/AustinBayley/activity_tracker_api/pkg/activities"
+	"github.com/AustinBayley/activity_tracker_api/pkg/datetime"
+	"github.com/AustinBayley/activity_tracker_api/pkg/service"
 	"github.com/AustinBayley/activity_tracker_api/pkg/uuid"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -20,24 +21,29 @@ var (
 // Users is a wrapper around a MongoDB collection of users.
 type Users struct {
 	*mongo.Collection
+	*service.Service[User]
 }
 
 // NewUsers creates a new Users instance with the provided MongoDB collection.
 func NewUsers(c *mongo.Collection) *Users {
-	return &Users{c}
+	return &Users{c, service.New[User](c)}
 }
 
 // PartialUser represents a user with only the ID, first name, and last name fields.
 type PartialUser struct {
-	ID        uuid.ID `json:"id" bson:"_id"`
+	ID        uuid.ID `json:"id,omitempty" bson:"_id,omitempty"`
 	FirstName string  `json:"firstName,omitempty" bson:"firstName"`
 	LastName  string  `json:"lastName,omitempty" bson:"lastName"`
+}
+
+func (u PartialUser) GetID() uuid.ID {
+	return u.ID
 }
 
 // User represents a full user with all fields, including activities.
 type User struct {
 	PartialUser `bson:",inline"`
-	CreatedDate string                `json:"createdDate" bson:"createdDate"`
+	CreatedDate datetime.DateTime     `json:"createdDate" bson:"createdDate"`
 	Email       string                `json:"email,omitempty" bson:"email"`
 	Bio         string                `json:"bio,omitempty" bson:"bio"`
 	Activities  []activities.Activity `json:"activities,omitempty" bson:"activities"`
@@ -52,20 +58,7 @@ func (u *User) MarshalBSON() ([]byte, error) {
 	return bson.Marshal((*RawUser)(u))
 }
 
-// ReadUsers retrieves all users from the MongoDB collection.
-// It returns a slice of PartialUser instances and any error encountered.
-func (u *Users) ReadUsers(ctx context.Context) ([]PartialUser, error) {
-
-	cur, err := u.Find(ctx, bson.D{})
-	if err != nil {
-		return nil, err
-	}
-
-	users := []PartialUser{}
-	if err = cur.All(ctx, &users); err != nil {
-		return users, err
-	}
-
-	return users, nil
-
-}
+var (
+	_ service.Resource          = (*User)(nil)
+	_ service.CRUDService[User] = (*Users)(nil)
+)

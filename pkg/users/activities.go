@@ -11,11 +11,12 @@ import (
 // It returns a slice of activities and an error if any occurred.
 func (u *Users) ReadUserActivities(ctx context.Context, id uuid.ID) ([]activities.Activity, error) {
 
-	user, err := u.ReadUser(ctx, id)
+	activities := []activities.Activity{}
+	err := u.ReadAttribute(ctx, id, "activities", &activities)
 	if err != nil {
 		return nil, err
 	}
 
-	return user.Activities, nil
+	return activities, nil
 
 }

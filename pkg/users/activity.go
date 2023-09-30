@@ -6,7 +6,6 @@ import (
 	"github.com/AustinBayley/activity_tracker_api/pkg/activities"
 	"github.com/AustinBayley/activity_tracker_api/pkg/uuid"
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
 )
 
 // TODO - implement
@@ -40,17 +39,12 @@ func (u *Users) UpdateUserActivity(ctx context.Context, userID uuid.ID, activity
 // It returns the id of the inserted activity and an error if any occurred.
 func (u *Users) CreateUserActivity(ctx context.Context, userID uuid.ID, activity activities.Activity) (uuid.ID, error) {
 
-	_, err := u.UpdateOne(ctx, bson.D{{Key: "_id", Value: userID}}, bson.D{{Key: "$push", Value: bson.D{{Key: "activities", Value: activity}}}})
+	res, err := u.AppendAttribute(ctx, userID, "activities", activity)
 	if err != nil {
-		switch err {
-		case mongo.ErrNoDocuments:
-			return "", ErrUserNotFound
-		default:
-			return "", err
-		}
+		return "", err
 	}
 
-	return activity.ID, nil
+	return res, nil
 
 }
 
@@ -58,18 +52,10 @@ func (u *Users) CreateUserActivity(ctx context.Context, userID uuid.ID, activity
 // It returns a boolean indicating whether the deletion was successful and an error if any occurred.
 func (u *Users) DeleteUserActivity(ctx context.Context, userID uuid.ID, activityID uuid.ID) error {
 
-	result, err := u.UpdateOne(ctx, bson.D{{Key: "_id", Value: userID}}, bson.D{{Key: "$pull", Value: bson.D{{Key: "activities._id", Value: activityID}}}})
-	if result.UpsertedCount != 1 {
-		return ErrResourceNotFound
+	if err := u.RemoveAttribute(ctx, userID, activityID, "activities"); err != nil {
+		return err
 	}
 
-	if err != nil {
-		switch err {
-		case mongo.ErrNoDocuments:
-			return ErrUserNotFound
-		}
-	}
-
-	return err
+	return nil
 
 }

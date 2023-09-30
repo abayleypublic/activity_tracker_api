@@ -2,11 +2,12 @@ package api
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 
 	"github.com/AustinBayley/activity_tracker_api/pkg/activities"
+	"github.com/AustinBayley/activity_tracker_api/pkg/datetime"
 	"github.com/AustinBayley/activity_tracker_api/pkg/errs"
+	"github.com/AustinBayley/activity_tracker_api/pkg/service"
 	"github.com/AustinBayley/activity_tracker_api/pkg/users"
 	"github.com/AustinBayley/activity_tracker_api/pkg/uuid"
 	jsonpatch "github.com/evanphx/json-patch/v5"
@@ -15,12 +16,12 @@ import (
 
 func (a *API) GetUsers(req typhon.Request) typhon.Response {
 
-	u, err := a.users.ReadUsers(req.Context)
-	if err != nil {
+	users := []users.User{}
+	if err := a.users.ReadAll(req.Context, &users); err != nil {
 		return errs.NotFoundResponse(req, err.Error())
 	}
 
-	return req.Response(u)
+	return req.Response(users)
 
 }
 
@@ -31,12 +32,13 @@ func (a *API) GetUser(req typhon.Request) typhon.Response {
 		return errs.BadRequestResponse(req, "id not supplied")
 	}
 
-	u, err := a.users.ReadUser(req.Context, uuid.ID(id))
+	user := users.User{}
+	err := a.users.Read(req.Context, uuid.ID(id), &user)
 	if err != nil {
 		return errs.NotFoundResponse(req, err.Error())
 	}
 
-	return req.Response(u)
+	return req.Response(user)
 
 }
 
@@ -62,13 +64,14 @@ func (a *API) PatchUser(req typhon.Request) typhon.Response {
 	}
 
 	// Stored user
-	su, err := a.users.ReadUser(req.Context, userID)
+	user := users.User{}
+	err = a.users.Read(req.Context, userID, &user)
 	if err != nil {
 		return errs.NotFoundResponse(req, err.Error())
 	}
 
 	// Stored user as slice of bytes
-	subb, err := json.Marshal(su)
+	subb, err := json.Marshal(user)
 	if err != nil {
 		return errs.UnprocessableEntityResponse(req, err.Error())
 	}
@@ -86,13 +89,13 @@ func (a *API) PatchUser(req typhon.Request) typhon.Response {
 	}
 
 	// Unmarshal modified document into user struct
-	user := users.User{}
+	user = users.User{}
 	if err = json.Unmarshal(modified, &user); err != nil {
 		return errs.UnprocessableEntityResponse(req, "error unmarshalling user")
 	}
 
 	// Update user
-	if err = a.users.UpdateUser(req.Context, user); err != nil {
+	if err = a.users.Update(req.Context, user); err != nil {
 		return errs.InternalServerResponse(req, err.Error())
 	}
 
@@ -107,7 +110,7 @@ func (a *API) DeleteUser(req typhon.Request) typhon.Response {
 		return errs.BadRequestResponse(req, "id not supplied")
 	}
 
-	if err := a.users.DeleteUser(req.Context, uuid.ID(id)); err != nil {
+	if err := a.users.Delete(req.Context, uuid.ID(id)); err != nil {
 		return errs.NotFoundResponse(req, err.Error())
 	}
 
@@ -122,30 +125,27 @@ func (a *API) PutUser(req typhon.Request) typhon.Response {
 		return errs.BadRequestResponse(req, "id not supplied")
 	}
 
-	userID := uuid.ID(id)
-
-	var user users.User
+	user := users.User{}
 	if err := req.Decode(&user); err != nil {
 		return errs.UnprocessableEntityResponse(req, "error decoding user")
 	}
-	log.Println("Decoded user")
 
-	if userID != user.ID {
-		return errs.BadRequestResponse(req, "user ID does not equal path ID")
+	if user.ID != uuid.ID(id) {
+		return errs.BadRequestResponse(req, "id in body does not match id in url")
 	}
-	log.Println("Compared")
 
-	if err := a.users.CreateUser(req.Context, user); err != nil {
+	user.CreatedDate = datetime.New()
+
+	if err := a.users.Create(req.Context, user); err != nil {
 		switch err {
-		case users.ErrUserAlreadyExists:
+		case service.ErrResourceAlreadyExists:
 			return errs.ConflictResponse(req, "user already exists")
 		default:
-			log.Println(err)
 			return errs.InternalServerResponse(req, "error creating user")
 		}
 	}
 
-	return req.ResponseWithCode(nil, http.StatusNoContent)
+	return req.ResponseWithCode(user, http.StatusOK)
 
 }
 
@@ -192,7 +192,7 @@ func (a *API) PostUserActivity(req typhon.Request) typhon.Response {
 	if err := req.Decode(&activity); err != nil {
 		return errs.UnprocessableEntityResponse(req, "error decoding activity")
 	}
-	activity.ID = uuid.NewID()
+	activity.ID = uuid.New()
 
 	res, err := a.users.CreateUserActivity(req.Context, userID, activity)
 	if err != nil {

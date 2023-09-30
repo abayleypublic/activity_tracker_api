@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 
+	"github.com/AustinBayley/activity_tracker_api/pkg/service"
 	"github.com/AustinBayley/activity_tracker_api/pkg/targets"
 	"github.com/AustinBayley/activity_tracker_api/pkg/uuid"
 	"go.mongodb.org/mongo-driver/bson"
@@ -20,22 +21,27 @@ var (
 // Challenges wraps a MongoDB collection of challenges.
 type Challenges struct {
 	*mongo.Collection
+	*service.Service[Challenge]
 }
 
 // NewChallenges creates a new Challenges instance with the provided MongoDB collection.
 func NewChallenges(c *mongo.Collection) *Challenges {
-	return &Challenges{c}
+	return &Challenges{c, service.New[Challenge](c)}
 }
 
 // PartialChallenge represents a challenge with a subset of its fields mainly intended for parsing a request from the UI
 type BaseChallenge struct {
-	ID          uuid.ID `json:"id" bson:"_id,omitempty"`
+	ID          uuid.ID `json:"id,omitempty" bson:"_id,omitempty"`
 	Name        string  `json:"name" bson:"name"`
 	Description string  `json:"description" bson:"description"`
 	StartDate   string  `json:"startDate" bson:"startDate"`
 	EndDate     string  `json:"endDate" bson:"endDate"`
 	Public      bool    `json:"public" bson:"public"`
 	InviteOnly  bool    `json:"inviteOnly" bson:"inviteOnly"`
+}
+
+func (bc BaseChallenge) GetID() uuid.ID {
+	return bc.ID
 }
 
 // PartialChallenge builds on BaseChallenge by adding the creator and target fields.
@@ -103,3 +109,8 @@ func (c *Challenges) ReadChallenges(ctx context.Context) ([]PartialChallenge, er
 	return challenges, err
 
 }
+
+var (
+	_ service.Resource               = (*Challenge)(nil)
+	_ service.CRUDService[Challenge] = (*Challenges)(nil)
+)
