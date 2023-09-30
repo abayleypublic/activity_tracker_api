@@ -76,6 +76,7 @@ func New[T Resource](collection *mongo.Collection) *Service[T] {
 func (s *Service[T]) Read(ctx context.Context, resourceID uuid.ID, resource *T) error {
 
 	if err := s.FindOne(ctx, bson.D{{Key: s.IDKey, Value: resourceID}}).Decode(resource); err != nil {
+		log.Println(err)
 		switch err {
 		case mongo.ErrNoDocuments:
 			return ErrResourceNotFound
@@ -92,10 +93,12 @@ func (s *Service[T]) ReadAll(ctx context.Context, resources *[]T) error {
 
 	cur, err := s.Find(ctx, bson.D{})
 	if err != nil {
+		log.Println(err)
 		return ErrUnknownError
 	}
 
 	if err = cur.All(ctx, resources); err != nil {
+		log.Println(err)
 		return ErrUnknownError
 	}
 

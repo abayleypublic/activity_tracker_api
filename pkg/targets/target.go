@@ -2,8 +2,17 @@ package targets
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
+	"reflect"
 
 	"github.com/AustinBayley/activity_tracker_api/pkg/activities"
+	"go.mongodb.org/mongo-driver/bson"
+)
+
+var (
+	ErrInvalidTarget = errors.New("invalid target")
+	ErrSyntaxError   = errors.New("syntax error")
 )
 
 type TargetType string
@@ -26,6 +35,78 @@ type BaseTarget struct {
 	TargetType TargetType `json:"type" bson:"type"`
 }
 
-func (t *BaseTarget) Type() TargetType {
-	return t.TargetType
+type RawTarget struct {
+	BaseTarget `bson:",inline"`
+	RealTarget Target `json:"-" bson:"-"`
+}
+
+func (t *RawTarget) UnmarshalBSON(b []byte) error {
+	// Get the type of target
+	raw := bson.Raw(b)
+	if err := raw.Lookup("type").Unmarshal(&t.TargetType); err != nil {
+		return ErrInvalidTarget
+	}
+
+	// Get a pointer to the target type
+	rt := resolveType(t.TargetType)
+	if rt == nil {
+		// If pointer is nil, an invalid target type was supplied
+		return ErrInvalidTarget
+	}
+
+	// Get the type of the target type
+	tar := reflect.TypeOf(rt)
+	// Make a new pointer to the target type
+	v := reflect.New(tar.Elem())
+	// Unmarshal the bson into the new pointer
+	ptr := v.Interface()
+	if err := bson.Unmarshal(b, ptr); err != nil {
+		return ErrSyntaxError
+	}
+	t.RealTarget = ptr.(Target)
+
+	return nil
+}
+
+func (t *RawTarget) UnmarshalJSON(b []byte) error {
+	raw := map[string]interface{}{}
+	if err := json.Unmarshal(b, &raw); err != nil {
+		return err
+	}
+
+	targetType, ok := raw["type"]
+	if !ok {
+		return ErrInvalidTarget
+	}
+	t.TargetType = TargetType(targetType.(string))
+
+	// Get a pointer to the target type
+	rt := resolveType(t.TargetType)
+	if rt == nil {
+		// If pointer is nil, an invalid target type was supplied
+		return ErrInvalidTarget
+	}
+
+	// Get the type of the target type
+	tar := reflect.TypeOf(rt)
+	// Make a new pointer to the target type
+	v := reflect.New(tar.Elem())
+	// Unmarshal the bson into the new pointer
+	ptr := v.Interface()
+	if err := json.Unmarshal(b, ptr); err != nil {
+		return ErrSyntaxError
+	}
+	t.RealTarget = ptr.(Target)
+
+	return nil
+}
+
+func resolveType(targetType TargetType) Target {
+	var target Target
+	switch targetType {
+	case RouteMovingTargetType:
+		target = &RouteMovingTarget{}
+	}
+
+	return target
 }

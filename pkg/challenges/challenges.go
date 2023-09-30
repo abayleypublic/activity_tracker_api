@@ -56,33 +56,28 @@ type PartialChallengeWithTarget struct {
 	Target           targets.Target `json:"target" bson:"target"`
 }
 
+type RawChallenge struct {
+	PartialChallenge `bson:",inline"`
+	Target           targets.RawTarget `json:"target" bson:"target"`
+}
+
 func (c *PartialChallengeWithTarget) UnmarshalJSON(b []byte) error {
-
-	type RawChallenge struct {
-		PartialChallenge
-		Target targets.BaseTarget `json:"target"`
-	}
-
-	// Parse rawMessage
 	rawChallenge := &RawChallenge{}
 	if err := json.Unmarshal(b, rawChallenge); err != nil {
 		return err
 	}
 	c.PartialChallenge = rawChallenge.PartialChallenge
+	c.Target = rawChallenge.Target.RealTarget
+	return nil
+}
 
-	switch rawChallenge.Target.Type() {
-	case targets.RouteMovingTargetType:
-		type RouteMovingTargetChallenge struct {
-			Target targets.RouteMovingTarget `json:"target"`
-		}
-		targetChallenge := &RouteMovingTargetChallenge{}
-		if err := json.Unmarshal(b, targetChallenge); err != nil {
-			return err
-		}
-		c.Target = &targetChallenge.Target
-	default:
-		return ErrInvalidTarget
+func (c *PartialChallengeWithTarget) UnmarshalBSON(b []byte) error {
+	rawChallenge := &RawChallenge{}
+	if err := bson.Unmarshal(b, rawChallenge); err != nil {
+		return err
 	}
+	c.PartialChallenge = rawChallenge.PartialChallenge
+	c.Target = rawChallenge.Target.RealTarget
 	return nil
 }
 

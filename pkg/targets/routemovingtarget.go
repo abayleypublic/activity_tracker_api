@@ -30,8 +30,8 @@ func (r RouteMovingTargetProgress) Percentage() float64 {
 }
 
 type RouteMovingTarget struct {
-	BaseTarget
-	Route Route `json:"route" bson:"route"`
+	BaseTarget `bson:",inline"`
+	Route      Route `json:"route" bson:"route"`
 }
 
 func (t *RouteMovingTarget) Type() TargetType {
