@@ -1,6 +1,10 @@
 package uuid
 
-import "go.mongodb.org/mongo-driver/bson/primitive"
+import (
+	"log"
+
+	"go.mongodb.org/mongo-driver/bson/primitive"
+)
 
 // ID is a type alias for string, intended to represent a UUID.
 type ID string
@@ -12,5 +16,7 @@ func ConvertID(id ID) (primitive.ObjectID, error) {
 }
 
 func NewID() ID {
-	return ID(primitive.NewObjectID().Hex())
+	hex := primitive.NewObjectID().Hex()
+	log.Println(hex)
+	return ID(hex)
 }

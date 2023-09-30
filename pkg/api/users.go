@@ -111,7 +111,7 @@ func (a *API) DeleteUser(req typhon.Request) typhon.Response {
 		return errs.NotFoundResponse(req, err.Error())
 	}
 
-	return req.ResponseWithCode(nil, http.StatusOK)
+	return req.ResponseWithCode(nil, http.StatusNoContent)
 
 }
 
@@ -188,10 +188,11 @@ func (a *API) PostUserActivity(req typhon.Request) typhon.Response {
 
 	userID := uuid.ID(id)
 
-	var activity activities.Activity
+	activity := activities.Activity{}
 	if err := req.Decode(&activity); err != nil {
 		return errs.UnprocessableEntityResponse(req, "error decoding activity")
 	}
+	activity.ID = uuid.NewID()
 
 	res, err := a.users.CreateUserActivity(req.Context, userID, activity)
 	if err != nil {

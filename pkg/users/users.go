@@ -43,6 +43,15 @@ type User struct {
 	Activities  []activities.Activity `json:"activities,omitempty" bson:"activities"`
 }
 
+func (u *User) MarshalBSON() ([]byte, error) {
+	type RawUser User
+	if u.Activities == nil {
+		u.Activities = make([]activities.Activity, 0)
+	}
+
+	return bson.Marshal((*RawUser)(u))
+}
+
 // ReadUsers retrieves all users from the MongoDB collection.
 // It returns a slice of PartialUser instances and any error encountered.
 func (u *Users) ReadUsers(ctx context.Context) ([]PartialUser, error) {

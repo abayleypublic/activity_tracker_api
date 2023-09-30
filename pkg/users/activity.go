@@ -6,7 +6,6 @@ import (
 	"github.com/AustinBayley/activity_tracker_api/pkg/activities"
 	"github.com/AustinBayley/activity_tracker_api/pkg/uuid"
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -41,7 +40,7 @@ func (u *Users) UpdateUserActivity(ctx context.Context, userID uuid.ID, activity
 // It returns the id of the inserted activity and an error if any occurred.
 func (u *Users) CreateUserActivity(ctx context.Context, userID uuid.ID, activity activities.Activity) (uuid.ID, error) {
 
-	result, err := u.UpdateOne(ctx, bson.D{{Key: "_id", Value: userID}}, bson.D{{Key: "$push", Value: bson.D{{Key: "activities", Value: activity}}}})
+	_, err := u.UpdateOne(ctx, bson.D{{Key: "_id", Value: userID}}, bson.D{{Key: "$push", Value: bson.D{{Key: "activities", Value: activity}}}})
 	if err != nil {
 		switch err {
 		case mongo.ErrNoDocuments:
@@ -51,7 +50,7 @@ func (u *Users) CreateUserActivity(ctx context.Context, userID uuid.ID, activity
 		}
 	}
 
-	return uuid.ID(result.UpsertedID.(primitive.ObjectID).String()), nil
+	return activity.ID, nil
 
 }
 

@@ -34,7 +34,7 @@ func (u *Users) ReadUser(ctx context.Context, id uuid.ID) (*User, error) {
 func (u *Users) CreateUser(ctx context.Context, user User) error {
 	opts := options.Update().SetUpsert(true)
 	user.CreatedDate = time.Now().UTC().Format(time.UnixDate)
-	res, err := u.UpdateOne(ctx, bson.D{{Key: "_id", Value: bson.D{{Key: "$exists", Value: false}}}}, bson.D{{Key: "$set", Value: user}}, opts)
+	res, err := u.UpdateOne(ctx, bson.D{{Key: "_id", Value: bson.D{{Key: "$exists", Value: false}}}}, bson.M{"$set": &user}, opts)
 	if err != nil {
 		if mongo.IsDuplicateKeyError(err) {
 			return ErrUserAlreadyExists

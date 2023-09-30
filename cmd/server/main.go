@@ -12,13 +12,6 @@ import (
 	"github.com/AustinBayley/activity_tracker_api/pkg/api"
 )
 
-type Environment string
-
-const (
-	DEV  Environment = "dev"
-	PROD Environment = "prod"
-)
-
 const (
 	projectID string = "542135123656"
 	dbName    string = "activity-tracker"
@@ -85,7 +78,12 @@ func getMongoCredentials(ctx context.Context, secrets *secretmanager.Client) (*M
 
 func main() {
 
-	env := Environment(os.Getenv("ENVIRONMENT"))
+	var env api.Environment
+	if value, ok := os.LookupEnv("ENVIRONMENT"); ok {
+		env = api.Environment(value)
+	} else {
+		env = api.DEV
+	}
 
 	ctx := context.Background()
 
@@ -101,7 +99,7 @@ func main() {
 
 	var mongoURI string
 	switch env {
-	case PROD:
+	case api.PROD:
 		dbCreds, err := getMongoCredentials(ctx, secretsClient)
 		if err != nil {
 			log.Fatalf("failed to get db credentials: %v", err)
@@ -117,7 +115,7 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	cfg := api.NewConfig(mongoURI, dbName, port, projectID, mapsCreds.key)
+	cfg := api.NewConfig(env, mongoURI, dbName, port, projectID, mapsCreds.key)
 
 	a, err := api.NewAPI(cfg)
 

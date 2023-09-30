@@ -120,7 +120,7 @@ func (a *API) DeleteChallenge(req typhon.Request) typhon.Response {
 		return errs.NotFoundResponse(req, err.Error())
 	}
 
-	return req.ResponseWithCode(nil, http.StatusOK)
+	return req.ResponseWithCode(nil, http.StatusNoContent)
 
 }
 
@@ -161,5 +161,5 @@ func (a *API) DeleteMember(req typhon.Request) typhon.Response {
 		return errs.InternalServerResponse(req, err.Error())
 	}
 
-	return req.ResponseWithCode(nil, http.StatusOK)
+	return req.ResponseWithCode(nil, http.StatusNoContent)
 }

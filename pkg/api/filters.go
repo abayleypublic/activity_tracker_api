@@ -61,6 +61,10 @@ func (a *API) AdminAuthFilter(req typhon.Request, svc typhon.Service) typhon.Res
 // Check if userID is equal to token subject or token is admin
 func (a *API) ValidUserFilter(req typhon.Request, svc typhon.Service) typhon.Response {
 
+	if a.env == DEV {
+		return svc(req)
+	}
+
 	id, ok := a.Params(req)["userID"]
 	if !ok {
 		return errs.BadRequestResponse(req, "could not determine target user")

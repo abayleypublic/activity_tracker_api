@@ -21,8 +21,16 @@ import (
 	"googlemaps.github.io/maps"
 )
 
+type Environment string
+
+const (
+	DEV  Environment = "dev"
+	PROD Environment = "prod"
+)
+
 type API struct {
 	typhon.Router
+	env        Environment
 	cfg        Config
 	db         *mongo.Database
 	auth       *auth.Auth
@@ -53,6 +61,7 @@ func NewAPI(cfg Config) (*API, error) {
 
 	return &API{
 		typhon.Router{},
+		cfg.Environment,
 		cfg,
 		db,
 		auth,
