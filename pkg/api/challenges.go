@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/AustinBayley/activity_tracker_api/pkg/challenges"
 	"github.com/AustinBayley/activity_tracker_api/pkg/errs"
@@ -13,12 +14,12 @@ import (
 
 func (a *API) GetChallenges(req typhon.Request) typhon.Response {
 
-	c, err := a.challenges.ReadChallenges(req.Context)
-	if err != nil {
+	cs := []challenges.Challenge{}
+	if err := a.challenges.ReadAll(req.Context, &cs); err != nil {
 		return errs.NotFoundResponse(req, err.Error())
 	}
 
-	return req.Response(c)
+	return req.Response(cs)
 
 }
 
@@ -29,12 +30,12 @@ func (a *API) GetChallenge(req typhon.Request) typhon.Response {
 		return errs.BadRequestResponse(req, "id not supplied")
 	}
 
-	c, err := a.challenges.ReadChallenge(req.Context, uuid.ID(id))
-	if err != nil {
+	challenge := challenges.Challenge{}
+	if err := a.challenges.Read(req.Context, uuid.ID(id), &challenge); err != nil {
 		return errs.NotFoundResponse(req, err.Error())
 	}
 
-	return req.Response(c)
+	return req.Response(challenge)
 
 }
 
@@ -44,8 +45,10 @@ func (a *API) PostChallenge(req typhon.Request) typhon.Response {
 	if err := req.Decode(&challenge); err != nil {
 		return errs.BadRequestResponse(req, "error decoding challenge")
 	}
+	challenge.ID = uuid.New()
+	challenge.CreatedDate = time.Now().UTC()
 
-	id, err := a.challenges.CreateChallenge(req.Context, challenge)
+	id, err := a.challenges.Create(req.Context, challenge)
 	if err != nil {
 		return errs.InternalServerResponse(req, err.Error())
 	}
@@ -71,13 +74,13 @@ func (a *API) PatchChallenge(req typhon.Request) typhon.Response {
 	}
 
 	// Stored challenge
-	su, err := a.challenges.ReadChallenge(req.Context, challengeID)
-	if err != nil {
+	challenge := challenges.Challenge{}
+	if err := a.challenges.Read(req.Context, challengeID, &challenge); err != nil {
 		return errs.NotFoundResponse(req, err.Error())
 	}
 
 	// Stored challenge as slice of bytes
-	subb, err := json.Marshal(su)
+	subb, err := json.Marshal(challenge)
 	if err != nil {
 		return errs.UnprocessableEntityResponse(req, err.Error())
 	}
@@ -95,17 +98,17 @@ func (a *API) PatchChallenge(req typhon.Request) typhon.Response {
 	}
 
 	// Unmarshal modified document into challenge struct
-	challenge := challenges.Challenge{}
+	c := challenges.Challenge{}
 	if err = json.Unmarshal(modified, &challenge); err != nil {
 		return errs.UnprocessableEntityResponse(req, "error unmarshalling challenge")
 	}
 
 	// Update user
-	if err = a.challenges.UpdateChallenge(req.Context, challenge); err != nil {
+	if err = a.challenges.Update(req.Context, c); err != nil {
 		return errs.InternalServerResponse(req, err.Error())
 	}
 
-	return req.Response(challenge)
+	return req.Response(c)
 
 }
 
@@ -116,7 +119,7 @@ func (a *API) DeleteChallenge(req typhon.Request) typhon.Response {
 		return errs.BadRequestResponse(req, "id not supplied")
 	}
 
-	if err := a.challenges.DeleteChallenge(req.Context, uuid.ID(id)); err != nil {
+	if err := a.challenges.Delete(req.Context, uuid.ID(id)); err != nil {
 		return errs.NotFoundResponse(req, err.Error())
 	}
 

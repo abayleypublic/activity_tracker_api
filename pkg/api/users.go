@@ -2,10 +2,11 @@ package api
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
+	"time"
 
 	"github.com/AustinBayley/activity_tracker_api/pkg/activities"
-	"github.com/AustinBayley/activity_tracker_api/pkg/datetime"
 	"github.com/AustinBayley/activity_tracker_api/pkg/errs"
 	"github.com/AustinBayley/activity_tracker_api/pkg/service"
 	"github.com/AustinBayley/activity_tracker_api/pkg/users"
@@ -134,9 +135,11 @@ func (a *API) PutUser(req typhon.Request) typhon.Response {
 		return errs.BadRequestResponse(req, "id in body does not match id in url")
 	}
 
-	user.CreatedDate = datetime.New()
+	user.CreatedDate = time.Now().UTC()
+	log.Println(user)
 
-	if err := a.users.Create(req.Context, user); err != nil {
+	res, err := a.users.Create(req.Context, user)
+	if err != nil {
 		switch err {
 		case service.ErrResourceAlreadyExists:
 			return errs.ConflictResponse(req, "user already exists")
@@ -145,7 +148,7 @@ func (a *API) PutUser(req typhon.Request) typhon.Response {
 		}
 	}
 
-	return req.ResponseWithCode(user, http.StatusOK)
+	return req.ResponseWithCode(res, http.StatusOK)
 
 }
 
@@ -185,7 +188,6 @@ func (a *API) PostUserActivity(req typhon.Request) typhon.Response {
 	if !ok {
 		return errs.BadRequestResponse(req, "id not supplied")
 	}
-
 	userID := uuid.ID(id)
 
 	activity := activities.Activity{}

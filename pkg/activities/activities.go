@@ -1,7 +1,8 @@
 package activities
 
 import (
-	"github.com/AustinBayley/activity_tracker_api/pkg/datetime"
+	"time"
+
 	"github.com/AustinBayley/activity_tracker_api/pkg/service"
 	"github.com/AustinBayley/activity_tracker_api/pkg/uuid"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -37,11 +38,11 @@ var (
 )
 
 type Activity struct {
-	ID    uuid.ID           `json:"id" bson:"_id"`
-	Type  ActivityType      `json:"type" bson:"type"`
-	Value float64           `json:"value" bson:"value"`
-	Start datetime.DateTime `json:"start" bson:"start"`
-	End   datetime.DateTime `json:"end,omitempty" bson:"end"`
+	ID    uuid.ID      `json:"id" bson:"_id"`
+	Type  ActivityType `json:"type" bson:"type"`
+	Value float64      `json:"value" bson:"value"`
+	Start time.Time    `json:"start" bson:"start"`
+	End   time.Time    `json:"end,omitempty" bson:"end"`
 }
 
 func (a Activity) GetID() uuid.ID {

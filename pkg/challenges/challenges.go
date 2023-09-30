@@ -1,9 +1,9 @@
 package challenges
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
+	"time"
 
 	"github.com/AustinBayley/activity_tracker_api/pkg/service"
 	"github.com/AustinBayley/activity_tracker_api/pkg/targets"
@@ -31,13 +31,13 @@ func NewChallenges(c *mongo.Collection) *Challenges {
 
 // PartialChallenge represents a challenge with a subset of its fields mainly intended for parsing a request from the UI
 type BaseChallenge struct {
-	ID          uuid.ID `json:"id,omitempty" bson:"_id,omitempty"`
-	Name        string  `json:"name" bson:"name"`
-	Description string  `json:"description" bson:"description"`
-	StartDate   string  `json:"startDate" bson:"startDate"`
-	EndDate     string  `json:"endDate" bson:"endDate"`
-	Public      bool    `json:"public" bson:"public"`
-	InviteOnly  bool    `json:"inviteOnly" bson:"inviteOnly"`
+	ID          uuid.ID   `json:"id,omitempty" bson:"_id,omitempty"`
+	Name        string    `json:"name" bson:"name"`
+	Description string    `json:"description" bson:"description"`
+	StartDate   time.Time `json:"startDate" bson:"startDate"`
+	EndDate     time.Time `json:"endDate" bson:"endDate"`
+	Public      bool      `json:"public" bson:"public"`
+	InviteOnly  bool      `json:"inviteOnly" bson:"inviteOnly"`
 }
 
 func (bc BaseChallenge) GetID() uuid.ID {
@@ -47,8 +47,8 @@ func (bc BaseChallenge) GetID() uuid.ID {
 // PartialChallenge builds on BaseChallenge by adding the creator and target fields.
 type PartialChallenge struct {
 	BaseChallenge `bson:",inline"`
-	CreatedBy     uuid.ID `json:"createdBy" bson:"createdBy"`
-	CreatedDate   string  `json:"createdDate" bson:"createdDate"`
+	CreatedBy     uuid.ID   `json:"createdBy" bson:"createdBy"`
+	CreatedDate   time.Time `json:"createdDate" bson:"createdDate"`
 }
 
 type PartialChallengeWithTarget struct {
@@ -89,25 +89,16 @@ func (c *PartialChallengeWithTarget) UnmarshalJSON(b []byte) error {
 // Challenge represents a full challenge, including its members.
 type Challenge struct {
 	PartialChallengeWithTarget `bson:",inline"`
-	Members                    []Member `json:"members" bson:"members"`
+	Members                    []Member `json:"members,omitempty" bson:"members"`
 }
 
-// ReadChallenges retrieves all challenges from the MongoDB collection.
-// It returns a slice of PartialChallenge and an error if there is any.
-func (c *Challenges) ReadChallenges(ctx context.Context) ([]PartialChallenge, error) {
-
-	cur, err := c.Find(ctx, bson.D{})
-	if err != nil {
-		return nil, err
+func (c *Challenge) MarshalBSON() ([]byte, error) {
+	type RawChallenge Challenge
+	if c.Members == nil {
+		c.Members = make([]Member, 0)
 	}
 
-	var challenges []PartialChallenge
-	if err = cur.All(ctx, &challenges); err != nil {
-		return challenges, err
-	}
-
-	return challenges, err
-
+	return bson.Marshal((*RawChallenge)(c))
 }
 
 var (

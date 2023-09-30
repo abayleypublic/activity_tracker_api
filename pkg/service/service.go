@@ -3,12 +3,18 @@ package service
 import (
 	"context"
 	"errors"
+	"log"
 	"reflect"
+	"time"
 
 	"github.com/AustinBayley/activity_tracker_api/pkg/uuid"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+)
+
+const (
+	timeFormat = time.RFC3339
 )
 
 type Resource interface {
@@ -34,7 +40,7 @@ func (a Attr) GetID() uuid.ID {
 }
 
 type CRUDService[T Resource] interface {
-	Create(ctx context.Context, resource T) error
+	Create(ctx context.Context, resource T) (uuid.ID, error)
 	Read(ctx context.Context, id uuid.ID, resource *T) error
 	ReadAll(ctx context.Context, resources *[]T) error
 	Update(ctx context.Context, resource T) error
@@ -97,18 +103,19 @@ func (s *Service[T]) ReadAll(ctx context.Context, resources *[]T) error {
 
 }
 
-func (s *Service[T]) Create(ctx context.Context, resource T) error {
+func (s *Service[T]) Create(ctx context.Context, resource T) (uuid.ID, error) {
 
 	opts := options.Update().SetUpsert(true)
-	_, err := s.UpdateOne(ctx, bson.D{{Key: s.IDKey, Value: bson.D{{Key: "$exists", Value: false}}}}, bson.M{"$set": &resource}, opts)
+	res, err := s.UpdateOne(ctx, bson.D{{Key: s.IDKey, Value: bson.D{{Key: "$exists", Value: false}}}}, bson.M{"$set": &resource}, opts)
 	if err != nil {
+		log.Println(err)
 		if mongo.IsDuplicateKeyError(err) {
-			return ErrResourceAlreadyExists
+			return "", ErrResourceAlreadyExists
 		}
-		return ErrUnknownError
+		return "", ErrUnknownError
 	}
 
-	return nil
+	return uuid.ID(res.UpsertedID.(string)), nil
 }
 
 func (s *Service[T]) Update(ctx context.Context, resource T) error {

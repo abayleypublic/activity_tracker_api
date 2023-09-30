@@ -14,6 +14,5 @@ func (id ID) ConvertID() string {
 }
 
 func New() ID {
-	hex := primitive.NewObjectID().Hex()
-	return ID(hex)
+	return ID(primitive.NewObjectID().Hex())
 }

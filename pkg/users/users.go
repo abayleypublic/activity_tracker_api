@@ -3,9 +3,9 @@ package users
 
 import (
 	"errors"
+	"time"
 
 	"github.com/AustinBayley/activity_tracker_api/pkg/activities"
-	"github.com/AustinBayley/activity_tracker_api/pkg/datetime"
 	"github.com/AustinBayley/activity_tracker_api/pkg/service"
 	"github.com/AustinBayley/activity_tracker_api/pkg/uuid"
 	"go.mongodb.org/mongo-driver/bson"
@@ -43,7 +43,7 @@ func (u PartialUser) GetID() uuid.ID {
 // User represents a full user with all fields, including activities.
 type User struct {
 	PartialUser `bson:",inline"`
-	CreatedDate datetime.DateTime     `json:"createdDate" bson:"createdDate"`
+	CreatedDate time.Time             `json:"createdDate" bson:"createdDate"`
 	Email       string                `json:"email,omitempty" bson:"email"`
 	Bio         string                `json:"bio,omitempty" bson:"bio"`
 	Activities  []activities.Activity `json:"activities,omitempty" bson:"activities"`
