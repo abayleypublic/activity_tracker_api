@@ -25,8 +25,52 @@ type Environment string
 
 const (
 	DEV  Environment = "dev"
+	STG  Environment = "stg"
 	PROD Environment = "prod"
 )
+
+type Response struct {
+	Data interface{}
+	code int   `json:"-"`
+	err  error `json:"-"`
+}
+
+func NewResponseWithCode(data interface{}, code int) Response {
+	res := Response{data, code, nil}
+
+	switch data := data.(type) {
+	case *Error:
+		res.code = data.Code
+		res.err = data
+	case error:
+		res.code = http.StatusInternalServerError
+		res.err = data
+	}
+
+	return res
+}
+
+func NewResponse(data interface{}) Response {
+	return NewResponseWithCode(data, http.StatusOK)
+}
+
+type Service func(req typhon.Request) Response
+
+func addFilters(svc typhon.Service, filters []typhon.Filter) typhon.Service {
+	for _, f := range filters {
+		svc = svc.Filter(f)
+	}
+	return svc
+}
+
+func serve(service Service, filters []typhon.Filter) typhon.Service {
+	return addFilters(func(req typhon.Request) typhon.Response {
+		res := service(req)
+		resp := req.ResponseWithCode(res.Data, res.code)
+		resp.Error = res.err
+		return resp
+	}, filters)
+}
 
 type API struct {
 	typhon.Router
@@ -72,13 +116,6 @@ func NewAPI(cfg Config) (*API, error) {
 	}, nil
 }
 
-func addFilters(svc typhon.Service, filters []typhon.Filter) typhon.Service {
-	for _, f := range filters {
-		svc = svc.Filter(f)
-	}
-	return svc
-}
-
 func (a *API) Start() {
 
 	// Get health of service
@@ -97,37 +134,37 @@ func (a *API) Start() {
 	})
 
 	// Admin Routes
-	a.GET("/admin/:userID", addFilters(a.GetAdmin, []typhon.Filter{a.ValidUserFilter}))
-	a.PUT("/admin/:userID", addFilters(a.PutAdmin, []typhon.Filter{a.ValidUserFilter}))
-	a.DELETE("/admin/:userID", addFilters(a.DeleteAdmin, []typhon.Filter{a.ValidUserFilter}))
+	a.GET("/admin/:userID", serve(a.GetAdmin, []typhon.Filter{a.ValidUserFilter}))
+	a.PUT("/admin/:userID", serve(a.PutAdmin, []typhon.Filter{a.ValidUserFilter}))
+	a.DELETE("/admin/:userID", serve(a.DeleteAdmin, []typhon.Filter{a.ValidUserFilter}))
 
-	// Challenges Routes
-	a.GET("/challenges", addFilters(a.GetChallenges, []typhon.Filter{}))
-	a.POST("/challenges", addFilters(a.PostChallenge, []typhon.Filter{}))
-	a.GET("/challenges/:id", addFilters(a.GetChallenge, []typhon.Filter{}))
-	a.DELETE("/challenges/:id", addFilters(a.DeleteChallenge, []typhon.Filter{}))
-	a.PATCH("/challenges/:id", addFilters(a.PatchChallenge, []typhon.Filter{}))
-	a.PUT("/challenges/:id/members/:userID", addFilters(a.PutMember, []typhon.Filter{a.ValidUserFilter}))
-	a.DELETE("/challenges/:id/members/:userID", addFilters(a.DeleteMember, []typhon.Filter{a.ValidUserFilter}))
+	// // Challenges Routes
+	a.GET("/challenges", serve(a.GetChallenges, []typhon.Filter{}))
+	a.POST("/challenges", serve(a.PostChallenge, []typhon.Filter{}))
+	a.GET("/challenges/:id", serve(a.GetChallenge, []typhon.Filter{}))
+	a.DELETE("/challenges/:id", serve(a.DeleteChallenge, []typhon.Filter{}))
+	a.PATCH("/challenges/:id", serve(a.PatchChallenge, []typhon.Filter{}))
+	a.PUT("/challenges/:id/members/:userID", serve(a.PutMember, []typhon.Filter{a.ValidUserFilter}))
+	a.DELETE("/challenges/:id/members/:userID", serve(a.DeleteMember, []typhon.Filter{a.ValidUserFilter}))
 
-	// User routes
-	a.GET("/users", addFilters(a.GetUsers, []typhon.Filter{}))
-	a.GET("/users/:userID", addFilters(a.GetUser, []typhon.Filter{}))
-	a.PATCH("/users/:userID", addFilters(a.PatchUser, []typhon.Filter{a.ValidUserFilter}))
-	a.DELETE("/users/:userID", addFilters(a.DeleteUser, []typhon.Filter{a.ValidUserFilter}))
+	// // User routes
+	a.GET("/users", serve(a.GetUsers, []typhon.Filter{}))
+	a.GET("/users/:userID", serve(a.GetUser, []typhon.Filter{}))
+	a.PATCH("/users/:userID", serve(a.PatchUser, []typhon.Filter{a.ValidUserFilter}))
+	a.DELETE("/users/:userID", serve(a.DeleteUser, []typhon.Filter{a.ValidUserFilter}))
 	// Because this method will only run once, a valid user filter is not required as it will not change other than via patch or delete requests
-	a.PUT("/users/:userID", addFilters(a.PutUser, []typhon.Filter{}))
-	a.GET("/users/:userID/activities", addFilters(a.GetUserActivities, []typhon.Filter{}))
-	a.POST("/users/:userID/activities", addFilters(a.PostUserActivity, []typhon.Filter{a.ValidUserFilter}))
-	a.GET("/users/:userID/activities/:activityID", addFilters(a.GetUserActivity, []typhon.Filter{}))
-	a.PATCH("/users/:userID/activities/:activityID", addFilters(a.PatchUserActivity, []typhon.Filter{a.ValidUserFilter}))
-	a.DELETE("/users/:userID/activities/:activityID", addFilters(a.DeleteUserActivity, []typhon.Filter{a.ValidUserFilter}))
+	a.PUT("/users/:userID", serve(a.PutUser, []typhon.Filter{}))
+	a.GET("/users/:userID/activities", serve(a.GetUserActivities, []typhon.Filter{}))
+	a.POST("/users/:userID/activities", serve(a.PostUserActivity, []typhon.Filter{a.ValidUserFilter}))
+	a.GET("/users/:userID/activities/:activityID", serve(a.GetUserActivity, []typhon.Filter{}))
+	a.PATCH("/users/:userID/activities/:activityID", serve(a.PatchUserActivity, []typhon.Filter{a.ValidUserFilter}))
+	a.DELETE("/users/:userID/activities/:activityID", serve(a.DeleteUserActivity, []typhon.Filter{a.ValidUserFilter}))
 
 	// Make sure body filtering and logging go last!
 	svc := a.Serve().
 		Filter(typhon.H2cFilter).
 		Filter(typhon.ErrorFilter).
-		Filter(a.BodyFilter).
+		// Filter(a.BodyFilter).
 		Filter(Logging)
 
 	defer func() {

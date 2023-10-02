@@ -28,9 +28,7 @@ func NewLocations(c *maps.Client) *Locations {
 	return instance
 }
 
-type LatLng maps.LatLng
-
-func GetLocationName(ctx context.Context, latlng LatLng) (string, error) {
+func GetLocationName(ctx context.Context, latlng maps.LatLng) (string, error) {
 
 	if !Initialised() {
 		return "", errors.New("locations instance not initialized")
@@ -46,21 +44,4 @@ func GetLocationName(ctx context.Context, latlng LatLng) (string, error) {
 	}
 
 	return place[0].FormattedAddress, nil
-}
-
-type Location struct {
-	LatLng LatLng `json:"latlng" bson:"latlng"`
-	Name   string `json:"name" bson:"name"`
-}
-
-func LocationFromLatLng(ctx context.Context, latlng LatLng) (Location, error) {
-	name, err := GetLocationName(ctx, latlng)
-	if err != nil {
-		return Location{}, err
-	}
-
-	return Location{
-		LatLng: latlng,
-		Name:   name,
-	}, nil
 }

@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"errors"
-	"log"
 	"reflect"
 	"time"
 
@@ -76,7 +75,6 @@ func New[T Resource](collection *mongo.Collection) *Service[T] {
 func (s *Service[T]) Read(ctx context.Context, resourceID uuid.ID, resource *T) error {
 
 	if err := s.FindOne(ctx, bson.D{{Key: s.IDKey, Value: resourceID}}).Decode(resource); err != nil {
-		log.Println(err)
 		switch err {
 		case mongo.ErrNoDocuments:
 			return ErrResourceNotFound
@@ -93,12 +91,10 @@ func (s *Service[T]) ReadAll(ctx context.Context, resources *[]T) error {
 
 	cur, err := s.Find(ctx, bson.D{})
 	if err != nil {
-		log.Println(err)
 		return ErrUnknownError
 	}
 
 	if err = cur.All(ctx, resources); err != nil {
-		log.Println(err)
 		return ErrUnknownError
 	}
 
@@ -111,7 +107,6 @@ func (s *Service[T]) Create(ctx context.Context, resource T) (uuid.ID, error) {
 	opts := options.Update().SetUpsert(true)
 	res, err := s.UpdateOne(ctx, bson.D{{Key: s.IDKey, Value: bson.D{{Key: "$exists", Value: false}}}}, bson.M{"$set": &resource}, opts)
 	if err != nil {
-		log.Println(err)
 		if mongo.IsDuplicateKeyError(err) {
 			return "", ErrResourceAlreadyExists
 		}

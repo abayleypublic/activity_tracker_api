@@ -2,11 +2,11 @@ package targets
 
 import (
 	"context"
-	"math"
+	"errors"
 
 	"github.com/AustinBayley/activity_tracker_api/pkg/activities"
 	"github.com/AustinBayley/activity_tracker_api/pkg/locations"
-	"googlemaps.github.io/maps"
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 var (
@@ -18,15 +18,31 @@ const (
 	RouteMovingTargetType TargetType = "routeMovingTarget"
 )
 
-type Route maps.Route
+var (
+	ErrFindingLocation = errors.New("error finding location")
+)
+
+// Can't use Route as Google don't allow caching / storage of data from the Directions API
+type Route struct {
+	locations.Waypoints `json:"waypoints" bson:"waypoints"`
+}
+
+func (r *Route) MarshalBSON() ([]byte, error) {
+	type RawRoute Route
+	if r.Waypoints == nil {
+		r.Waypoints = make(locations.Waypoints, 0)
+	}
+
+	return bson.Marshal((*RawRoute)(r))
+}
 
 type RouteMovingTargetProgress struct {
-	Progress float64            `json:"progress" bson:"progress"`
+	Percent  float64            `json:"percent" bson:"percent"`
 	Location locations.Location `json:"location" bson:"location"`
 }
 
 func (r RouteMovingTargetProgress) Percentage() float64 {
-	return r.Progress
+	return r.Percent
 }
 
 type RouteMovingTarget struct {
@@ -48,41 +64,13 @@ func (t *RouteMovingTarget) Evaluate(ctx context.Context, acts []activities.Acti
 		}
 	}
 
-	var distanceSum float64
-	// Iterate over each leg of the route and calculate the distance sum
-	for _, leg := range t.Route.Legs {
-		for _, step := range leg.Steps {
-			stepDistance := float64(step.Distance.Meters) / 1000
-			distanceSum += stepDistance
-
-			// Check if the total distance has been reached
-			if distanceSum >= distance {
-				distanceDiff := distanceSum - distance
-				fraction := (distanceDiff / stepDistance) * 100
-
-				latlng := locations.LatLng(step.StartLocation)
-				loc, err := locations.LocationFromLatLng(ctx, latlng)
-				if err != nil {
-					return nil, err
-				}
-
-				return RouteMovingTargetProgress{
-					Progress: math.Max(fraction, 100.0),
-					Location: loc,
-				}, nil
-			}
-		}
-	}
-
-	lastLeg := t.Route.Legs[len(t.Route.Legs)-1]
-	latlng := locations.LatLng(lastLeg.EndLocation)
-	loc, err := locations.LocationFromLatLng(ctx, latlng)
+	loc, err := t.Route.GetLocation(distance)
 	if err != nil {
-		return nil, err
+		return nil, ErrFindingLocation
 	}
 
 	return RouteMovingTargetProgress{
-		Progress: 100.0,
+		Percent:  100.0,
 		Location: loc,
 	}, nil
 
