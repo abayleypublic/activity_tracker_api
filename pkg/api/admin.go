@@ -3,7 +3,7 @@ package api
 import (
 	"net/http"
 
-	"github.com/AustinBayley/activity_tracker_api/pkg/uuid"
+	"github.com/AustinBayley/activity_tracker_api/pkg/service"
 	"github.com/monzo/typhon"
 )
 
@@ -14,7 +14,7 @@ func (a *API) GetAdmin(req typhon.Request) Response {
 		return NewResponse(BadRequest("id not supplied", nil))
 	}
 
-	admin, err := a.admin.GetAdmin(req.Context, uuid.ID(id))
+	admin, err := a.admin.GetAdmin(req.Context, service.ID(id))
 	if err != nil {
 		return NewResponse(Forbidden("user is not authorized to perform this action", err))
 	}
@@ -30,7 +30,7 @@ func (a *API) DeleteAdmin(req typhon.Request) Response {
 		return NewResponse(BadRequest("id not supplied", nil))
 	}
 
-	err := a.admin.SetAdmin(req.Context, uuid.ID(id), false)
+	err := a.admin.SetAdmin(req.Context, service.ID(id), false)
 	if err != nil {
 		return NewResponse(InternalServer("error deleting admin", err))
 	}
@@ -46,7 +46,7 @@ func (a *API) PutAdmin(req typhon.Request) Response {
 		return NewResponse(BadRequest("id not supplied", nil))
 	}
 
-	err := a.admin.SetAdmin(req.Context, uuid.ID(id), true)
+	err := a.admin.SetAdmin(req.Context, service.ID(id), true)
 	if err != nil {
 		return NewResponse(InternalServer("error setting admin", nil))
 	}

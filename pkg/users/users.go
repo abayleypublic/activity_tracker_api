@@ -7,7 +7,6 @@ import (
 
 	"github.com/AustinBayley/activity_tracker_api/pkg/activities"
 	"github.com/AustinBayley/activity_tracker_api/pkg/service"
-	"github.com/AustinBayley/activity_tracker_api/pkg/uuid"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -31,12 +30,12 @@ func NewUsers(c *mongo.Collection) *Users {
 
 // PartialUser represents a user with only the ID, first name, and last name fields.
 type PartialUser struct {
-	ID        uuid.ID `json:"id,omitempty" bson:"_id,omitempty"`
-	FirstName string  `json:"firstName,omitempty" bson:"firstName"`
-	LastName  string  `json:"lastName,omitempty" bson:"lastName"`
+	ID        service.ID `json:"id,omitempty" bson:"_id,omitempty"`
+	FirstName string     `json:"firstName,omitempty" bson:"firstName"`
+	LastName  string     `json:"lastName,omitempty" bson:"lastName"`
 }
 
-func (u PartialUser) GetID() uuid.ID {
+func (u PartialUser) GetID() service.ID {
 	return u.ID
 }
 

@@ -2,11 +2,12 @@ package api
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"time"
 
 	"github.com/AustinBayley/activity_tracker_api/pkg/challenges"
-	"github.com/AustinBayley/activity_tracker_api/pkg/uuid"
+	"github.com/AustinBayley/activity_tracker_api/pkg/service"
 	jsonpatch "github.com/evanphx/json-patch/v5"
 	"github.com/monzo/typhon"
 )
@@ -30,7 +31,7 @@ func (a *API) GetChallenge(req typhon.Request) Response {
 	}
 
 	challenge := challenges.Challenge{}
-	if err := a.challenges.Read(req.Context, uuid.ID(id), &challenge); err != nil {
+	if err := a.challenges.Read(req.Context, service.ID(id), &challenge); err != nil {
 		return NewResponse(NotFound(err.Error(), err))
 	}
 
@@ -44,7 +45,7 @@ func (a *API) PostChallenge(req typhon.Request) Response {
 	if err := req.Decode(&challenge); err != nil {
 		return NewResponse(BadRequest("error decoding challenge", err))
 	}
-	challenge.ID = uuid.New()
+	challenge.ID = service.NewID()
 	challenge.CreatedDate = time.Now().UTC()
 
 	id, err := a.challenges.Create(req.Context, challenge)
@@ -64,7 +65,7 @@ func (a *API) PatchChallenge(req typhon.Request) Response {
 		return NewResponse(BadRequest("id not supplied", nil))
 	}
 
-	challengeID := uuid.ID(id)
+	challengeID := service.ID(id)
 
 	// Get body & store as slice of bytes
 	bb, err := req.BodyBytes(true)
@@ -118,7 +119,7 @@ func (a *API) DeleteChallenge(req typhon.Request) Response {
 		return NewResponse(BadRequest("id not supplied", nil))
 	}
 
-	if err := a.challenges.Delete(req.Context, uuid.ID(id)); err != nil {
+	if err := a.challenges.Delete(req.Context, service.ID(id)); err != nil {
 		return NewResponse(NotFound(err.Error(), err))
 	}
 
@@ -138,12 +139,20 @@ func (a *API) PutMember(req typhon.Request) Response {
 		return NewResponse(BadRequest("user id not supplied", nil))
 	}
 
-	err := a.challenges.AddMember(req.Context, uuid.ID(id), uuid.ID(userID))
+	d, err := a.challenges.AppendAttribute(req.Context, service.ID(id), "members", service.ID(userID))
 	if err != nil {
+		switch err {
+		case service.ErrResourceAlreadyExists:
+			return NewResponse(Conflict(err.Error(), err))
+		case service.ErrResourceNotFound:
+			return NewResponse(NotFound(err.Error(), err))
+		}
 		return NewResponse(InternalServer(err.Error(), err))
 	}
 
-	return NewResponse("Member created or updated successfully")
+	log.Println(d)
+
+	return NewResponseWithCode(nil, http.StatusNoContent)
 }
 
 func (a *API) DeleteMember(req typhon.Request) Response {
@@ -158,8 +167,12 @@ func (a *API) DeleteMember(req typhon.Request) Response {
 		return NewResponse(BadRequest("user id not supplied", nil))
 	}
 
-	err := a.challenges.DeleteMember(req.Context, uuid.ID(id), uuid.ID(userID))
+	err := a.challenges.DeleteMember(req.Context, service.ID(id), service.ID(userID))
 	if err != nil {
+		switch err {
+		case service.ErrResourceNotFound:
+			return NewResponse(NotFound(err.Error(), err))
+		}
 		return NewResponse(InternalServer(err.Error(), err))
 	}
 

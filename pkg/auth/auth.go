@@ -7,7 +7,7 @@ import (
 
 	firebase "firebase.google.com/go"
 	"firebase.google.com/go/auth"
-	"github.com/AustinBayley/activity_tracker_api/pkg/uuid"
+	"github.com/AustinBayley/activity_tracker_api/pkg/service"
 	"github.com/monzo/typhon"
 )
 
@@ -98,8 +98,8 @@ func (a *Auth) GetValidToken(ctx context.Context, t string) (*Token, error) {
 	return &res, nil
 }
 
-func (a *Auth) GetUserID(ctx context.Context, token Token) uuid.ID {
-	return uuid.ID(token.UID)
+func (a *Auth) GetUserID(ctx context.Context, token Token) service.ID {
+	return service.ID(token.UID)
 }
 
 func (a *Auth) IsAdmin(token Token) bool {

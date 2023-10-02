@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/AustinBayley/activity_tracker_api/pkg/auth"
-	"github.com/AustinBayley/activity_tracker_api/pkg/uuid"
+	"github.com/AustinBayley/activity_tracker_api/pkg/service"
 )
 
 // Admin is a struct that holds the auth object.
@@ -23,7 +23,7 @@ func NewAdmin(auth *auth.Auth) *Admin {
 // GetAdmin is a method on the Admin struct that checks if a user is an admin.
 // It takes a context and a user ID as parameters.
 // It returns a boolean indicating whether the user is an admin and an error if any occurred.
-func (a *Admin) GetAdmin(ctx context.Context, id uuid.ID) (bool, error) {
+func (a *Admin) GetAdmin(ctx context.Context, id service.ID) (bool, error) {
 
 	user, err := a.auth.GetUser(ctx, string(id))
 	if err != nil {
@@ -41,7 +41,7 @@ func (a *Admin) GetAdmin(ctx context.Context, id uuid.ID) (bool, error) {
 // SetAdmin is a method on the Admin struct that sets a user as an admin.
 // It takes a context, a user ID, and a boolean indicating whether the user should be an admin as parameters.
 // It returns an error if any occurred.
-func (a *Admin) SetAdmin(ctx context.Context, id uuid.ID, admin bool) error {
+func (a *Admin) SetAdmin(ctx context.Context, id service.ID, admin bool) error {
 
 	claims := map[string]interface{}{"admin": admin}
 	if err := a.auth.SetCustomUserClaims(ctx, string(id), claims); err != nil {

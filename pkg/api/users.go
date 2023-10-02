@@ -8,7 +8,6 @@ import (
 	"github.com/AustinBayley/activity_tracker_api/pkg/activities"
 	"github.com/AustinBayley/activity_tracker_api/pkg/service"
 	"github.com/AustinBayley/activity_tracker_api/pkg/users"
-	"github.com/AustinBayley/activity_tracker_api/pkg/uuid"
 	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/monzo/typhon"
 )
@@ -31,7 +30,7 @@ func (a *API) GetUser(req typhon.Request) Response {
 	}
 
 	user := users.User{}
-	err := a.users.Read(req.Context, uuid.ID(id), &user)
+	err := a.users.Read(req.Context, service.ID(id), &user)
 	if err != nil {
 		return NewResponse(NotFound(err.Error(), err))
 	}
@@ -53,7 +52,7 @@ func (a *API) PatchUser(req typhon.Request) Response {
 		return NewResponse(BadRequest("id not supplied", nil))
 	}
 
-	userID := uuid.ID(id)
+	userID := service.ID(id)
 
 	// Get body & store as slice of bytes
 	bb, err := req.BodyBytes(true)
@@ -108,7 +107,7 @@ func (a *API) DeleteUser(req typhon.Request) Response {
 		return NewResponse(BadRequest("id not supplied", nil))
 	}
 
-	if err := a.users.Delete(req.Context, uuid.ID(id)); err != nil {
+	if err := a.users.Delete(req.Context, service.ID(id)); err != nil {
 		return NewResponse(NotFound(err.Error(), err))
 	}
 
@@ -128,7 +127,7 @@ func (a *API) PutUser(req typhon.Request) Response {
 		return NewResponse(UnprocessableEntity("error decoding user", err))
 	}
 
-	if user.ID != uuid.ID(id) {
+	if user.ID != service.ID(id) {
 		return NewResponse(BadRequest("id in body does not match id in url", nil))
 	}
 
@@ -165,8 +164,8 @@ func (a *API) GetUserActivity(req typhon.Request) Response {
 		return NewResponse(BadRequest("activity id not supplied", nil))
 	}
 
-	userID := uuid.ID(id)
-	activityID := uuid.ID(aid)
+	userID := service.ID(id)
+	activityID := service.ID(aid)
 
 	res, err := a.users.ReadUserActivity(req.Context, userID, activityID)
 	if err != nil {
@@ -181,13 +180,13 @@ func (a *API) PostUserActivity(req typhon.Request) Response {
 	if !ok {
 		return NewResponse(BadRequest("id not supplied", nil))
 	}
-	userID := uuid.ID(id)
+	userID := service.ID(id)
 
 	activity := activities.Activity{}
 	if err := req.Decode(&activity); err != nil {
 		return NewResponse(UnprocessableEntity("error decoding activity", err))
 	}
-	activity.ID = uuid.New()
+	activity.ID = service.NewID()
 
 	res, err := a.users.CreateUserActivity(req.Context, userID, activity)
 	if err != nil {
@@ -210,8 +209,8 @@ func (a *API) PatchUserActivity(req typhon.Request) Response {
 		return NewResponse(BadRequest("activity id not supplied", nil))
 	}
 
-	userID := uuid.ID(id)
-	activityID := uuid.ID(aid)
+	userID := service.ID(id)
+	activityID := service.ID(aid)
 
 	// Get body & store as slice of bytes
 	bb, err := req.BodyBytes(true)
@@ -269,7 +268,7 @@ func (a *API) DeleteUserActivity(req typhon.Request) Response {
 		return NewResponse(BadRequest("activity id not supplied", nil))
 	}
 
-	if err := a.users.DeleteUserActivity(req.Context, uuid.ID(id), uuid.ID(aid)); err != nil {
+	if err := a.users.DeleteUserActivity(req.Context, service.ID(id), service.ID(aid)); err != nil {
 		return NewResponse(NotFound(err.Error(), err))
 	}
 
@@ -282,7 +281,7 @@ func (a *API) GetUserActivities(req typhon.Request) Response {
 		return NewResponse(BadRequest("user id not supplied", nil))
 	}
 
-	as, err := a.users.ReadUserActivities(req.Context, uuid.ID(id))
+	as, err := a.users.ReadUserActivities(req.Context, service.ID(id))
 	if err != nil {
 		return NewResponse(NotFound(err.Error(), err))
 	}

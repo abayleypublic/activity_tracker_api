@@ -3,10 +3,9 @@ package service
 import (
 	"context"
 	"errors"
-	"reflect"
+	"fmt"
 	"time"
 
-	"github.com/AustinBayley/activity_tracker_api/pkg/uuid"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -17,36 +16,36 @@ const (
 )
 
 type Resource interface {
-	GetID() uuid.ID
+	GetID() ID
 }
 
 type res struct{}
 
-func (r *res) GetID() uuid.ID {
+func (r *res) GetID() ID {
 	return ""
 }
 
 func (r *res) SetCreated(string) {}
 
 type Attribute interface {
-	GetID() uuid.ID
+	GetID() ID
 }
 
 type Attr struct{}
 
-func (a Attr) GetID() uuid.ID {
+func (a Attr) GetID() ID {
 	return ""
 }
 
 type CRUDService[T Resource] interface {
-	Create(ctx context.Context, resource T) (uuid.ID, error)
-	Read(ctx context.Context, id uuid.ID, resource *T) error
+	Create(ctx context.Context, resource T) (ID, error)
+	Read(ctx context.Context, id ID, resource *T) error
 	ReadAll(ctx context.Context, resources *[]T) error
 	Update(ctx context.Context, resource T) error
-	Delete(ctx context.Context, id uuid.ID) error
-	ReadAttribute(ctx context.Context, resourceID uuid.ID, attributeKey string, attributes interface{}) error
-	AppendAttribute(ctx context.Context, resourceID uuid.ID, attributeKey string, attribute Attribute) (uuid.ID, error)
-	RemoveAttribute(ctx context.Context, resourceID uuid.ID, attributeID uuid.ID, attributeKey string) error
+	Delete(ctx context.Context, id ID) error
+	ReadAttribute(ctx context.Context, resourceID ID, attributeKey string, attributes interface{}) error
+	AppendAttribute(ctx context.Context, resourceID ID, attributeKey string, attribute Attribute) (ID, error)
+	RemoveAttribute(ctx context.Context, resourceID ID, attributeKey string, attributeID ID) error
 }
 
 var (
@@ -72,7 +71,7 @@ func New[T Resource](collection *mongo.Collection) *Service[T] {
 	return &Service[T]{collection, "_id"}
 }
 
-func (s *Service[T]) Read(ctx context.Context, resourceID uuid.ID, resource *T) error {
+func (s *Service[T]) Read(ctx context.Context, resourceID ID, resource *T) error {
 
 	if err := s.FindOne(ctx, bson.D{{Key: s.IDKey, Value: resourceID}}).Decode(resource); err != nil {
 		switch err {
@@ -102,8 +101,7 @@ func (s *Service[T]) ReadAll(ctx context.Context, resources *[]T) error {
 
 }
 
-func (s *Service[T]) Create(ctx context.Context, resource T) (uuid.ID, error) {
-
+func (s *Service[T]) Create(ctx context.Context, resource T) (ID, error) {
 	opts := options.Update().SetUpsert(true)
 	res, err := s.UpdateOne(ctx, bson.D{{Key: s.IDKey, Value: bson.D{{Key: "$exists", Value: false}}}}, bson.M{"$set": &resource}, opts)
 	if err != nil {
@@ -113,7 +111,7 @@ func (s *Service[T]) Create(ctx context.Context, resource T) (uuid.ID, error) {
 		return "", ErrUnknownError
 	}
 
-	return uuid.ID(res.UpsertedID.(string)), nil
+	return ID(res.UpsertedID.(string)), nil
 }
 
 func (s *Service[T]) Update(ctx context.Context, resource T) error {
@@ -130,7 +128,7 @@ func (s *Service[T]) Update(ctx context.Context, resource T) error {
 	return nil
 }
 
-func (s *Service[T]) Delete(ctx context.Context, id uuid.ID) error {
+func (s *Service[T]) Delete(ctx context.Context, id ID) error {
 
 	res, err := s.DeleteOne(ctx, bson.D{{Key: s.IDKey, Value: id}})
 	if err != nil {
@@ -145,12 +143,7 @@ func (s *Service[T]) Delete(ctx context.Context, id uuid.ID) error {
 
 }
 
-func (s *Service[T]) ReadAttribute(ctx context.Context, resourceID uuid.ID, attributeKey string, attributes any) error {
-
-	rv := reflect.ValueOf(attributes)
-	if rv.Kind() != reflect.Pointer || rv.IsNil() {
-		return ErrInvalidPointer
-	}
+func (s *Service[T]) ReadAttribute(ctx context.Context, resourceID ID, attributeKey string, attributes interface{}) error {
 
 	opts := options.FindOne().SetProjection(bson.M{s.IDKey: 0, attributeKey: 1})
 
@@ -166,27 +159,65 @@ func (s *Service[T]) ReadAttribute(ctx context.Context, resourceID uuid.ID, attr
 	element := raw.Lookup(attributeKey)
 	err = element.Unmarshal(attributes)
 	if err != nil {
+		return ErrInvalidPointer
+	}
+
+	return nil
+}
+
+func (s *Service[T]) ReadSingleAttribute(ctx context.Context, resourceID ID, attributeKey string, attributeID ID, attribute interface{}) error {
+
+	opts := options.FindOne().SetProjection(bson.M{s.IDKey: 0, attributeKey: bson.M{"$elemMatch": bson.M{s.IDKey: attributeID}}})
+	raw, err := s.FindOne(ctx, bson.D{{Key: s.IDKey, Value: resourceID}}, opts).DecodeBytes()
+
+	if err != nil {
+		switch err {
+		case mongo.ErrNoDocuments:
+			return ErrResourceNotFound
+		}
+		return ErrUnknownError
+	}
+
+	element := raw.Lookup(attributeKey)
+	arr, ok := element.ArrayOK()
+	if !ok {
+		return ErrResourceNotFound
+	}
+
+	err = arr.Index(0).Value().Unmarshal(attribute)
+	if err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (s *Service[T]) AppendAttribute(ctx context.Context, resourceID uuid.ID, attributeKey string, attribute Attribute) (uuid.ID, error) {
+func (s *Service[T]) AppendAttribute(ctx context.Context, resourceID ID, attributeKey string, attribute Attribute) (ID, error) {
 
-	res, err := s.UpdateOne(ctx, bson.D{{Key: s.IDKey, Value: resourceID}}, bson.D{{Key: "$push", Value: bson.M{attributeKey: attribute}}})
+	res, err := s.UpdateOne(ctx,
+		bson.D{
+			{Key: s.IDKey, Value: resourceID},
+			{Key: attributeKey, Value: bson.M{"$ne": string(attribute.GetID())}},
+			{Key: fmt.Sprintf("%s.%s", attributeKey, s.IDKey), Value: bson.M{"$ne": string(attribute.GetID())}},
+		},
+		bson.D{{Key: "$push", Value: bson.M{attributeKey: attribute}}},
+	)
 	if err != nil {
 		return "", ErrUnknownError
 	}
 
 	if res.ModifiedCount != 1 {
+		if res.MatchedCount == 0 {
+			return "", ErrResourceAlreadyExists
+		}
+
 		return "", ErrResourceNotFound
 	}
 
 	return attribute.GetID(), nil
 }
 
-func (s *Service[T]) RemoveAttribute(ctx context.Context, resourceID uuid.ID, attributeID uuid.ID, attributeKey string) error {
+func (s *Service[T]) RemoveAttribute(ctx context.Context, resourceID ID, attributeKey string, attributeID ID) error {
 
 	res, err := s.UpdateOne(ctx, bson.D{{Key: s.IDKey, Value: resourceID}}, bson.D{{Key: "$pull", Value: bson.D{{Key: attributeKey, Value: bson.D{{Key: s.IDKey, Value: attributeID}}}}}})
 	if err != nil {

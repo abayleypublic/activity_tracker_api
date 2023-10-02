@@ -2,20 +2,12 @@ package challenges
 
 import (
 	"encoding/json"
-	"errors"
 	"time"
 
 	"github.com/AustinBayley/activity_tracker_api/pkg/service"
 	"github.com/AustinBayley/activity_tracker_api/pkg/targets"
-	"github.com/AustinBayley/activity_tracker_api/pkg/uuid"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
-)
-
-var (
-	ErrInvalidTarget     = errors.New("invalid target type")
-	ErrParseTarget       = errors.New("error parsing target")
-	ErrChallengeNotFound = errors.New("challenge not found")
 )
 
 // Challenges wraps a MongoDB collection of challenges.
@@ -31,24 +23,24 @@ func NewChallenges(c *mongo.Collection) *Challenges {
 
 // PartialChallenge represents a challenge with a subset of its fields mainly intended for parsing a request from the UI
 type BaseChallenge struct {
-	ID          uuid.ID   `json:"id,omitempty" bson:"_id,omitempty"`
-	Name        string    `json:"name" bson:"name"`
-	Description string    `json:"description" bson:"description"`
-	StartDate   time.Time `json:"startDate" bson:"startDate"`
-	EndDate     time.Time `json:"endDate" bson:"endDate"`
-	Public      bool      `json:"public" bson:"public"`
-	InviteOnly  bool      `json:"inviteOnly" bson:"inviteOnly"`
+	ID          service.ID `json:"id,omitempty" bson:"_id,omitempty"`
+	Name        string     `json:"name" bson:"name"`
+	Description string     `json:"description" bson:"description"`
+	StartDate   time.Time  `json:"startDate" bson:"startDate"`
+	EndDate     time.Time  `json:"endDate" bson:"endDate"`
+	Public      bool       `json:"public" bson:"public"`
+	InviteOnly  bool       `json:"inviteOnly" bson:"inviteOnly"`
 }
 
-func (bc BaseChallenge) GetID() uuid.ID {
+func (bc BaseChallenge) GetID() service.ID {
 	return bc.ID
 }
 
 // PartialChallenge builds on BaseChallenge by adding the creator and target fields.
 type PartialChallenge struct {
 	BaseChallenge `bson:",inline"`
-	CreatedBy     uuid.ID   `json:"createdBy" bson:"createdBy"`
-	CreatedDate   time.Time `json:"createdDate" bson:"createdDate"`
+	CreatedBy     service.ID `json:"createdBy" bson:"createdBy"`
+	CreatedDate   time.Time  `json:"createdDate" bson:"createdDate"`
 }
 
 type PartialChallengeWithTarget struct {

@@ -1,4 +1,4 @@
-package uuid
+package service
 
 import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -13,6 +13,14 @@ func (id ID) ConvertID() string {
 	return string(id)
 }
 
-func New() ID {
+func NewID() ID {
 	return ID(primitive.NewObjectID().Hex())
 }
+
+func (id ID) GetID() ID {
+	return id
+}
+
+var (
+	_ Attribute = (*ID)(nil)
+)
