@@ -76,7 +76,12 @@ func (c *PartialChallengeWithTarget) UnmarshalBSON(b []byte) error {
 // Challenge represents a full challenge, including its members.
 type Challenge struct {
 	PartialChallengeWithTarget `bson:",inline"`
-	Members                    []Member `json:"members,omitempty" bson:"members"`
+	CreatedDate                *service.Time `json:"createdDate" bson:"createdDate"`
+	Members                    []Member      `json:"members,omitempty" bson:"members"`
+}
+
+func (c Challenge) GetCreatedDate() service.Time {
+	return *c.CreatedDate
 }
 
 func (c *Challenge) MarshalBSON() ([]byte, error) {

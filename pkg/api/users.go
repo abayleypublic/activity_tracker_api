@@ -3,7 +3,6 @@ package api
 import (
 	"encoding/json"
 	"net/http"
-	"time"
 
 	"github.com/AustinBayley/activity_tracker_api/pkg/activities"
 	"github.com/AustinBayley/activity_tracker_api/pkg/service"
@@ -130,8 +129,6 @@ func (a *API) PutUser(req typhon.Request) Response {
 	if user.ID != service.ID(id) {
 		return NewResponse(BadRequest("id in body does not match id in url", nil))
 	}
-
-	user.CreatedDate = time.Now().UTC()
 
 	res, err := a.users.Create(req.Context, user)
 	if err != nil {

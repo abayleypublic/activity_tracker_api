@@ -4,37 +4,20 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
+	"log"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-const (
-	timeFormat = time.RFC3339
-)
-
 type Resource interface {
 	GetID() ID
+	GetCreatedDate() Time
 }
-
-type res struct{}
-
-func (r *res) GetID() ID {
-	return ""
-}
-
-func (r *res) SetCreated(string) {}
 
 type Attribute interface {
 	GetID() ID
-}
-
-type Attr struct{}
-
-func (a Attr) GetID() ID {
-	return ""
 }
 
 type CRUDService[T Resource] interface {
@@ -57,8 +40,6 @@ var (
 )
 
 var (
-	_ Attribute             = (*Attr)(nil)
-	_ Resource              = (*res)(nil)
 	_ CRUDService[Resource] = (*Service[Resource])(nil)
 )
 
@@ -108,6 +89,7 @@ func (s *Service[T]) Create(ctx context.Context, resource T) (ID, error) {
 		if mongo.IsDuplicateKeyError(err) {
 			return "", ErrResourceAlreadyExists
 		}
+		log.Println(err)
 		return "", ErrUnknownError
 	}
 
@@ -219,7 +201,7 @@ func (s *Service[T]) AppendAttribute(ctx context.Context, resourceID ID, attribu
 
 func (s *Service[T]) RemoveAttribute(ctx context.Context, resourceID ID, attributeKey string, attributeID ID) error {
 
-	res, err := s.UpdateOne(ctx, bson.D{{Key: s.IDKey, Value: resourceID}}, bson.D{{Key: "$pull", Value: bson.D{{Key: attributeKey, Value: bson.D{{Key: s.IDKey, Value: attributeID}}}}}})
+	res, err := s.UpdateOne(ctx, bson.D{{Key: s.IDKey, Value: resourceID}}, bson.D{{Key: "$pull", Value: bson.D{{Key: attributeKey, Value: bson.M{"$or": bson.D{{Key: s.IDKey, Value: attributeID}, {Key: "$eq", Value: attributeID}}}}}}})
 	if err != nil {
 		return ErrUnknownError
 	}

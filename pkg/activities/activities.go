@@ -37,11 +37,12 @@ var (
 )
 
 type Activity struct {
-	ID    service.ID   `json:"id" bson:"_id"`
-	Type  ActivityType `json:"type" bson:"type"`
-	Value float64      `json:"value" bson:"value"`
-	Start time.Time    `json:"start" bson:"start"`
-	End   time.Time    `json:"end,omitempty" bson:"end"`
+	ID          service.ID    `json:"id" bson:"_id"`
+	CreatedDate *service.Time `json:"createdDate" bson:"createdDate"`
+	Type        ActivityType  `json:"type" bson:"type"`
+	Value       float64       `json:"value" bson:"value"`
+	Start       time.Time     `json:"start" bson:"start"`
+	End         time.Time     `json:"end,omitempty" bson:"end"`
 }
 
 func (a Activity) GetID() service.ID {

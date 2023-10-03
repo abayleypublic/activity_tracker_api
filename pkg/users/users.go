@@ -3,7 +3,6 @@ package users
 
 import (
 	"errors"
-	"time"
 
 	"github.com/AustinBayley/activity_tracker_api/pkg/activities"
 	"github.com/AustinBayley/activity_tracker_api/pkg/service"
@@ -42,10 +41,14 @@ func (u PartialUser) GetID() service.ID {
 // User represents a full user with all fields, including activities.
 type User struct {
 	PartialUser `bson:",inline"`
-	CreatedDate time.Time             `json:"createdDate" bson:"createdDate"`
+	CreatedDate *service.Time         `json:"createdDate" bson:"createdDate"`
 	Email       string                `json:"email,omitempty" bson:"email"`
 	Bio         string                `json:"bio,omitempty" bson:"bio"`
 	Activities  []activities.Activity `json:"activities,omitempty" bson:"activities"`
+}
+
+func (u User) GetCreatedDate() service.Time {
+	return *u.CreatedDate
 }
 
 func (u *User) MarshalBSON() ([]byte, error) {

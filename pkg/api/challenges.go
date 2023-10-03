@@ -2,9 +2,7 @@ package api
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
-	"time"
 
 	"github.com/AustinBayley/activity_tracker_api/pkg/challenges"
 	"github.com/AustinBayley/activity_tracker_api/pkg/service"
@@ -46,7 +44,6 @@ func (a *API) PostChallenge(req typhon.Request) Response {
 		return NewResponse(BadRequest("error decoding challenge", err))
 	}
 	challenge.ID = service.NewID()
-	challenge.CreatedDate = time.Now().UTC()
 
 	id, err := a.challenges.Create(req.Context, challenge)
 	if err != nil {
@@ -139,7 +136,7 @@ func (a *API) PutMember(req typhon.Request) Response {
 		return NewResponse(BadRequest("user id not supplied", nil))
 	}
 
-	d, err := a.challenges.AppendAttribute(req.Context, service.ID(id), "members", service.ID(userID))
+	_, err := a.challenges.AppendAttribute(req.Context, service.ID(id), "members", service.ID(userID))
 	if err != nil {
 		switch err {
 		case service.ErrResourceAlreadyExists:
@@ -149,8 +146,6 @@ func (a *API) PutMember(req typhon.Request) Response {
 		}
 		return NewResponse(InternalServer(err.Error(), err))
 	}
-
-	log.Println(d)
 
 	return NewResponseWithCode(nil, http.StatusNoContent)
 }
