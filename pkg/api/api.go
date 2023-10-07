@@ -168,6 +168,7 @@ func (a *API) Start() {
 	svc := a.Serve().
 		Filter(typhon.H2cFilter).
 		Filter(typhon.ErrorFilter).
+		Filter(a.ActorFilter).
 		// Filter(a.BodyFilter).
 		Filter(Logging)
 

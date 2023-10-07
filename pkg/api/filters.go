@@ -3,11 +3,26 @@ package api
 import (
 	"context"
 	"encoding/json"
-	"log"
+	"errors"
+	"net/http"
 
 	"github.com/AustinBayley/activity_tracker_api/pkg/service"
 	"github.com/monzo/slog"
 	"github.com/monzo/typhon"
+)
+
+type RequestContext struct {
+	Admin  bool
+	UserID service.ID
+}
+
+const (
+	UnknownUser = service.ID("unknown")
+	UserCtxKey  = service.CtxKey("user")
+)
+
+var (
+	ErrInvalidContext = errors.New("invalid context")
 )
 
 func response(req typhon.Request, err *Error) typhon.Response {
@@ -26,87 +41,103 @@ func ForbiddenResponse(req typhon.Request, cause string, err error) typhon.Respo
 	return response(req, Forbidden(cause, err))
 }
 
+func GetActorContext(ctx context.Context) (RequestContext, error) {
+	val := ctx.Value(UserCtxKey)
+	if val == nil {
+		return RequestContext{}, ErrInvalidContext
+	}
+
+	d, ok := val.(RequestContext)
+	if !ok {
+		return RequestContext{}, ErrInvalidContext
+	}
+
+	return d, nil
+}
+
 func Logging(req typhon.Request, svc typhon.Service) typhon.Response {
 
 	res := svc(req)
-	userMap := res.Request.Context.Value(service.CtxKey("user"))
-	user := "unknown"
-	admin := false
-	if userMap != nil {
-		log.Println(userMap)
-		um := userMap.(map[string]interface{})
-		user = string(um["userID"].(service.ID))
-		admin = um["admin"].(bool)
+	user, err := GetActorContext(res.Request.Context)
+	if err != nil {
+		slog.Error(req.Context, "📡 %v %v - %v - %v - %v - %v - %v", req.Method, req.URL, req.RemoteAddr, user.UserID, user.Admin, res.StatusCode, "failed to get actor context")
+		return res
 	}
 
 	if err := res.Error; err != nil {
-		slog.Error(req.Context, "📡 %v %v - %v - %v - %v - %v - %v", req.Method, req.URL, req.RemoteAddr, user, admin, res.StatusCode, res.Error.Error())
+		slog.Error(req.Context, "📡 %v %v - %v - %v - %v - %v - %v", req.Method, req.URL, req.RemoteAddr, user.UserID, user.Admin, res.StatusCode, res.Error.Error())
 	} else {
-		slog.Debug(req.Context, "📡 %v %v - %v - %v - %v - %v", req.Method, req.URL, req.RemoteAddr, user, admin, res.StatusCode)
+		slog.Debug(req.Context, "📡 %v %v - %v - %v - %v - %v", req.Method, req.URL, req.RemoteAddr, user.UserID, user.Admin, res.StatusCode)
 	}
 
 	return res
 }
 
-// Only allow valid tokens
-func (a *API) ValidAuthFilter(req typhon.Request, svc typhon.Service) typhon.Response {
+// ActorFilter updates the context with details of the user making the request.
+func (a *API) ActorFilter(req typhon.Request, svc typhon.Service) typhon.Response {
 
+	// Get token from headers
 	t, err := a.auth.GetAuthToken(req)
 	if err != nil {
-		return ForbiddenResponse(req, err.Error(), err)
+		// If no token has been supplied, proceed with unknown user permissions
+		req.Context = context.WithValue(req.Context, UserCtxKey, RequestContext{
+			UserID: UnknownUser,
+			Admin:  false,
+		})
+		return svc(req)
 	}
 
-	token, err := a.auth.GetValidToken(req.Context, t)
+	// If token was supplied, get user details
+	token, err := a.auth.GetToken(req.Context, t)
 	if err != nil {
-		return ForbiddenResponse(req, err.Error(), err)
+		return ForbiddenResponse(req, "invalid token", err)
 	}
-
 	tokenSubject := a.auth.GetUserID(req.Context, *token)
 
-	req.Context = context.WithValue(req.Context, service.CtxKey("user"), map[string]interface{}{
-		"admin":  false,
-		"userID": tokenSubject,
+	// Check token for admin claim
+	admin := a.auth.IsAdmin(*token)
+
+	// If admin claim or making anything other than a GET request, always check token is valid & not revoked
+	if admin || req.Method != http.MethodGet {
+		_, err = a.auth.GetValidToken(req.Context, t)
+		if err != nil {
+			return ForbiddenResponse(req, "invalid token", err)
+		}
+	}
+
+	req.Context = context.WithValue(req.Context, UserCtxKey, RequestContext{
+		UserID: tokenSubject,
+		Admin:  admin,
 	})
+
+	return svc(req)
+}
+
+// Only allow valid tokens
+func (a *API) ValidAuthFilter(req typhon.Request, svc typhon.Service) typhon.Response {
+	// If the user has not been set, return unauthorized
+	if user := req.Context.Value(UserCtxKey); user == nil || user.(RequestContext).UserID == UnknownUser {
+		return ForbiddenResponse(req, "user is not authorized to perform this action", nil)
+	}
 
 	return svc(req)
 }
 
 // Check if userID is equal to token subject or token is admin
 func (a *API) ValidUserFilter(req typhon.Request, svc typhon.Service) typhon.Response {
-
-	if a.env == DEV {
-		return svc(req)
-	}
-
 	id, ok := a.Params(req)["userID"]
 	if !ok {
 		return BadRequestResponse(req, "could not determine target user", nil)
 	}
 	userID := service.ID(id)
 
-	t, err := a.auth.GetAuthToken(req)
+	reqCtx, err := GetActorContext(req.Context)
 	if err != nil {
-		return UnauthorizedResponse(req, err.Error(), err)
-	}
-
-	token, err := a.auth.GetToken(req.Context, t)
-	if err != nil {
-		return ForbiddenResponse(req, err.Error(), err)
-	}
-
-	tokenSubject := a.auth.GetUserID(req.Context, *token)
-	req.Context = context.WithValue(req.Context, service.CtxKey("user"), map[string]interface{}{
-		"admin":  false,
-		"userID": tokenSubject,
-	})
-
-	if admin := a.auth.IsAdmin(*token); !admin && tokenSubject != userID {
 		return ForbiddenResponse(req, "user is not authorized to perform this action", err)
-	} else if admin {
-		req.Context = context.WithValue(req.Context, service.CtxKey("user"), map[string]interface{}{
-			"admin":  true,
-			"userID": tokenSubject,
-		})
+	}
+
+	if !reqCtx.Admin && reqCtx.UserID != userID {
+		return ForbiddenResponse(req, "user is not authorized to perform this action", nil)
 	}
 
 	return svc(req)
@@ -115,25 +146,15 @@ func (a *API) ValidUserFilter(req typhon.Request, svc typhon.Service) typhon.Res
 // Only allow admin users
 func (a *API) AdminAuthFilter(req typhon.Request, svc typhon.Service) typhon.Response {
 
-	t, err := a.auth.GetAuthToken(req)
+	reqCtx, err := GetActorContext(req.Context)
 	if err != nil {
-		return UnauthorizedResponse(req, err.Error(), err)
-	}
-
-	token, err := a.auth.GetValidToken(req.Context, t)
-	if err != nil {
-		return ForbiddenResponse(req, err.Error(), err)
-	}
-
-	tokenSubject := a.auth.GetUserID(req.Context, *token)
-	req.Context = context.WithValue(req.Context, service.CtxKey("user"), map[string]interface{}{
-		"admin":  true,
-		"userID": tokenSubject,
-	})
-
-	if admin := a.auth.IsAdmin(*token); !admin {
 		return ForbiddenResponse(req, "user is not authorized to perform this action", err)
 	}
+
+	if !reqCtx.Admin {
+		return ForbiddenResponse(req, "user is not authorized to perform this action", nil)
+	}
+
 	return svc(req)
 }
 
