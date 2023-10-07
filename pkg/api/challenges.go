@@ -76,15 +76,6 @@ func (a *API) PatchChallenge(req typhon.Request) Response {
 		return NewResponse(NotFound(err.Error(), err))
 	}
 
-	user, err := GetActorContext(req.Context)
-	if err != nil {
-		return NewResponse(Forbidden("could not determine user", err))
-	}
-
-	if !challenge.CanBeModifiedBy(user.UserID, user.Admin) {
-		return NewResponse(Forbidden("user is not authorized to perform this action", nil))
-	}
-
 	// Stored challenge as slice of bytes
 	subb, err := json.Marshal(challenge)
 	if err != nil {

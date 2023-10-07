@@ -55,6 +55,18 @@ func (a Activity) GetCreatedDate() service.Time {
 	return *a.CreatedDate
 }
 
+func (a Activity) CanBeReadBy(userID service.ID, admin bool) bool {
+	return a.UserID == userID || admin
+}
+
+func (a Activity) CanBeUpdatedBy(userID service.ID, admin bool) bool {
+	return a.UserID == userID || admin
+}
+
+func (a Activity) CanBeDeletedBy(userID service.ID, admin bool) bool {
+	return a.UserID == userID || admin
+}
+
 func New(Type ActivityType, Value float64) Activity {
 	return Activity{
 		ID:    service.NewID(),

@@ -83,7 +83,15 @@ func (c Challenge) GetCreatedDate() service.Time {
 	return *c.CreatedDate
 }
 
-func (c Challenge) CanBeModifiedBy(userID service.ID, admin bool) bool {
+func (c Challenge) CanBeReadBy(userID service.ID, admin bool) bool {
+	return true
+}
+
+func (c Challenge) CanBeUpdatedBy(userID service.ID, admin bool) bool {
+	return c.CreatedBy == userID || admin
+}
+
+func (c Challenge) CanBeDeletedBy(userID service.ID, admin bool) bool {
 	return c.CreatedBy == userID || admin
 }
 

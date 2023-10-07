@@ -3,26 +3,11 @@ package api
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"net/http"
 
 	"github.com/AustinBayley/activity_tracker_api/pkg/service"
 	"github.com/monzo/slog"
 	"github.com/monzo/typhon"
-)
-
-type RequestContext struct {
-	Admin  bool
-	UserID service.ID
-}
-
-const (
-	UnknownUser = service.ID("unknown")
-	UserCtxKey  = service.CtxKey("user")
-)
-
-var (
-	ErrInvalidContext = errors.New("invalid context")
 )
 
 func response(req typhon.Request, err *Error) typhon.Response {
@@ -41,24 +26,10 @@ func ForbiddenResponse(req typhon.Request, cause string, err error) typhon.Respo
 	return response(req, Forbidden(cause, err))
 }
 
-func GetActorContext(ctx context.Context) (RequestContext, error) {
-	val := ctx.Value(UserCtxKey)
-	if val == nil {
-		return RequestContext{}, ErrInvalidContext
-	}
-
-	d, ok := val.(RequestContext)
-	if !ok {
-		return RequestContext{}, ErrInvalidContext
-	}
-
-	return d, nil
-}
-
 func Logging(req typhon.Request, svc typhon.Service) typhon.Response {
 
 	res := svc(req)
-	user, err := GetActorContext(res.Request.Context)
+	user, err := service.GetActorContext(res.Request.Context)
 	if err != nil {
 		slog.Error(req.Context, "📡 %v %v - %v - %v - %v - %v - %v", req.Method, req.URL, req.RemoteAddr, user.UserID, user.Admin, res.StatusCode, "failed to get actor context")
 		return res
@@ -76,12 +47,17 @@ func Logging(req typhon.Request, svc typhon.Service) typhon.Response {
 // ActorFilter updates the context with details of the user making the request.
 func (a *API) ActorFilter(req typhon.Request, svc typhon.Service) typhon.Response {
 
+	if a.env == DEV {
+		req.Context = context.WithValue(req.Context, service.UserCtxKey, a.cfg.UserContext)
+		return svc(req)
+	}
+
 	// Get token from headers
 	t, err := a.auth.GetAuthToken(req)
 	if err != nil {
 		// If no token has been supplied, proceed with unknown user permissions
-		req.Context = context.WithValue(req.Context, UserCtxKey, RequestContext{
-			UserID: UnknownUser,
+		req.Context = context.WithValue(req.Context, service.UserCtxKey, service.RequestContext{
+			UserID: service.UnknownUser,
 			Admin:  false,
 		})
 		return svc(req)
@@ -105,7 +81,7 @@ func (a *API) ActorFilter(req typhon.Request, svc typhon.Service) typhon.Respons
 		}
 	}
 
-	req.Context = context.WithValue(req.Context, UserCtxKey, RequestContext{
+	req.Context = context.WithValue(req.Context, service.UserCtxKey, service.RequestContext{
 		UserID: tokenSubject,
 		Admin:  admin,
 	})
@@ -115,8 +91,9 @@ func (a *API) ActorFilter(req typhon.Request, svc typhon.Service) typhon.Respons
 
 // Only allow valid tokens
 func (a *API) ValidAuthFilter(req typhon.Request, svc typhon.Service) typhon.Response {
+
 	// If the user has not been set, return unauthorized
-	if user := req.Context.Value(UserCtxKey); user == nil || user.(RequestContext).UserID == UnknownUser {
+	if user := req.Context.Value(service.UserCtxKey); user == nil || user.(service.RequestContext).UserID == service.UnknownUser {
 		return ForbiddenResponse(req, "user is not authorized to perform this action", nil)
 	}
 
@@ -125,13 +102,14 @@ func (a *API) ValidAuthFilter(req typhon.Request, svc typhon.Service) typhon.Res
 
 // Check if userID is equal to token subject or token is admin
 func (a *API) ValidUserFilter(req typhon.Request, svc typhon.Service) typhon.Response {
+
 	id, ok := a.Params(req)["userID"]
 	if !ok {
 		return BadRequestResponse(req, "could not determine target user", nil)
 	}
 	userID := service.ID(id)
 
-	reqCtx, err := GetActorContext(req.Context)
+	reqCtx, err := service.GetActorContext(req.Context)
 	if err != nil {
 		return ForbiddenResponse(req, "user is not authorized to perform this action", err)
 	}
@@ -146,7 +124,7 @@ func (a *API) ValidUserFilter(req typhon.Request, svc typhon.Service) typhon.Res
 // Only allow admin users
 func (a *API) AdminAuthFilter(req typhon.Request, svc typhon.Service) typhon.Response {
 
-	reqCtx, err := GetActorContext(req.Context)
+	reqCtx, err := service.GetActorContext(req.Context)
 	if err != nil {
 		return ForbiddenResponse(req, "user is not authorized to perform this action", err)
 	}

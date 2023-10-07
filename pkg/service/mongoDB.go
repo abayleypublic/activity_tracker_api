@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"log"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -36,11 +35,49 @@ func (s *MongoDBService[T]) FindResource(ctx context.Context, resource *T, crite
 	return nil
 }
 
+// Performant checks if a user has permission to perform an operation on a resource.
+// Electing to go this route instead of using queries to enforce permissions
+// because it provides easier distinction of whether not found or not authorised.
+// It will be a bit slower so may have to revisit this.
+func (s *MongoDBService[T]) Permitted(ctx context.Context, criteria interface{}, op Operation) (bool, error) {
+
+	var res T
+	if err := s.FindResource(ctx, &res, criteria); err != nil {
+		return false, ErrResourceNotFound
+	}
+
+	rc, err := GetActorContext(ctx)
+	if err != nil {
+		return false, nil
+	}
+
+	switch op {
+	case READ:
+		return res.CanBeReadBy(rc.UserID, rc.Admin), nil
+	case UPDATE:
+		return res.CanBeUpdatedBy(rc.UserID, rc.Admin), nil
+	case DELETE:
+		return res.CanBeDeletedBy(rc.UserID, rc.Admin), nil
+
+	}
+
+	return false, nil
+}
+
 func (s *MongoDBService[T]) Read(ctx context.Context, resourceID ID, resource *T) error {
+
+	ok, err := s.Permitted(ctx, bson.D{{Key: s.IDKey, Value: resourceID}}, READ)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return ErrForbidden
+	}
+
 	return s.FindResource(ctx, resource, bson.D{{Key: s.IDKey, Value: resourceID}})
 }
 
-func (s *MongoDBService[T]) FindAll(ctx context.Context, resources *[]T, criteria interface{}) error {
+func (s *MongoDBService[T]) FindAll(ctx context.Context, resources interface{}, criteria interface{}) error {
 
 	cur, err := s.Find(ctx, criteria)
 	if err != nil {
@@ -61,14 +98,17 @@ func (s *MongoDBService[T]) ReadAll(ctx context.Context, resources *[]T) error {
 	return s.FindAll(ctx, resources, bson.D{})
 }
 
+// ReadAllRaw is the same as ReadAll without the type checking
+func (s *MongoDBService[T]) ReadAllRaw(ctx context.Context, resources interface{}) error {
+	return s.FindAll(ctx, resources, bson.D{})
+}
+
 func (s *MongoDBService[T]) Create(ctx context.Context, resource T) (ID, error) {
 	res, err := s.InsertOne(ctx, &resource)
 	if err != nil {
-		log.Println(err)
 		if mongo.IsDuplicateKeyError(err) {
 			return "", ErrResourceAlreadyExists
 		}
-		log.Println(err)
 		return "", ErrUnknownError
 	}
 
@@ -76,6 +116,15 @@ func (s *MongoDBService[T]) Create(ctx context.Context, resource T) (ID, error) 
 }
 
 func (s *MongoDBService[T]) UpdateWithCriteria(ctx context.Context, resource T, criteria interface{}) error {
+
+	ok, err := s.Permitted(ctx, criteria, UPDATE)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return ErrForbidden
+	}
+
 	opts := options.Update().SetUpsert(true)
 	res, err := s.UpdateOne(ctx, criteria, bson.D{{Key: "$set", Value: resource}}, opts)
 	if err != nil {
@@ -94,6 +143,15 @@ func (s *MongoDBService[T]) Update(ctx context.Context, resource T) error {
 }
 
 func (s *MongoDBService[T]) DeleteWithCriteria(ctx context.Context, criteria interface{}) error {
+
+	ok, err := s.Permitted(ctx, criteria, DELETE)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return ErrForbidden
+	}
+
 	res, err := s.DeleteOne(ctx, criteria)
 	if err != nil {
 		return ErrUnknownError
@@ -161,7 +219,6 @@ func (s *MongoDBService[T]) ReadSingleAttribute(ctx context.Context, resourceID 
 }
 
 func (s *MongoDBService[T]) AppendAttribute(ctx context.Context, resourceID ID, attributeKey string, attribute Attribute) (ID, error) {
-
 	res, err := s.UpdateOne(ctx,
 		bson.D{
 			{Key: s.IDKey, Value: resourceID},

@@ -44,6 +44,18 @@ func (u User) GetCreatedDate() service.Time {
 	return *u.CreatedDate
 }
 
+func (u User) CanBeReadBy(userID service.ID, admin bool) bool {
+	return u.ID == userID || admin
+}
+
+func (u User) CanBeUpdatedBy(userID service.ID, admin bool) bool {
+	return u.ID == userID || admin
+}
+
+func (u User) CanBeDeletedBy(userID service.ID, admin bool) bool {
+	return u.ID == userID || admin
+}
+
 func (u *User) MarshalBSON() ([]byte, error) {
 	type RawUser User
 

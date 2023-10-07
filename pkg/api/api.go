@@ -14,6 +14,7 @@ import (
 	"github.com/AustinBayley/activity_tracker_api/pkg/admin"
 	"github.com/AustinBayley/activity_tracker_api/pkg/auth"
 	"github.com/AustinBayley/activity_tracker_api/pkg/challenges"
+	"github.com/AustinBayley/activity_tracker_api/pkg/service"
 	"github.com/AustinBayley/activity_tracker_api/pkg/targets/locations"
 	"github.com/AustinBayley/activity_tracker_api/pkg/users"
 	"github.com/monzo/typhon"
@@ -43,8 +44,19 @@ func NewResponseWithCode(data interface{}, code int) Response {
 		res.code = data.Code
 		res.err = data
 	case error:
-		res.code = http.StatusInternalServerError
 		res.err = data
+		switch data {
+		case service.ErrResourceNotFound:
+			res.code = http.StatusNotFound
+		case service.ErrBadSyntax:
+			res.code = http.StatusBadRequest
+		case service.ErrForbidden:
+			res.code = http.StatusForbidden
+		case service.ErrResourceAlreadyExists:
+			res.code = http.StatusConflict
+		default:
+			res.code = http.StatusInternalServerError
+		}
 	}
 
 	return res
@@ -151,10 +163,10 @@ func (a *API) Start() {
 	a.PATCH("/users/:userID", serve(a.PatchUser, []typhon.Filter{a.ValidUserFilter}))
 	a.DELETE("/users/:userID", serve(a.DeleteUser, []typhon.Filter{a.ValidUserFilter}))
 	// Because this method will only run once, a valid user filter is not required as it will not change other than via patch or delete requests
-	a.PUT("/users/:userID", serve(a.PutUser, []typhon.Filter{}))
+	a.PUT("/users/:userID", serve(a.PutUser, []typhon.Filter{a.ValidUserFilter}))
 
 	// User activities routes
-	a.GET("/users/:userID/activities", serve(a.GetUserActivities, []typhon.Filter{}))
+	a.GET("/users/:userID/activities", serve(a.GetUserActivities, []typhon.Filter{a.ValidUserFilter}))
 	a.POST("/users/:userID/activities", serve(a.PostUserActivity, []typhon.Filter{a.ValidUserFilter}))
 	a.GET("/users/:userID/activities/:activityID", serve(a.GetUserActivity, []typhon.Filter{}))
 	a.PATCH("/users/:userID/activities/:activityID", serve(a.PatchUserActivity, []typhon.Filter{a.ValidUserFilter}))

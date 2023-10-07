@@ -7,11 +7,33 @@ import (
 
 type CtxKey string
 
+type RequestContext struct {
+	Admin  bool
+	UserID ID
+}
+
+func GetActorContext(ctx context.Context) (RequestContext, error) {
+	val := ctx.Value(UserCtxKey)
+	if val == nil {
+		return RequestContext{}, ErrInvalidContext
+	}
+
+	d, ok := val.(RequestContext)
+	if !ok {
+		return RequestContext{}, ErrInvalidContext
+	}
+
+	return d, nil
+}
+
 // A resource is a top level element in the database.
 // A resource must be accessible via a unique ID.
 type Resource interface {
 	GetID() ID
 	GetCreatedDate() Time
+	CanBeReadBy(userID ID, admin bool) bool
+	CanBeUpdatedBy(userID ID, admin bool) bool
+	CanBeDeletedBy(userID ID, admin bool) bool
 }
 
 // An attribute is a sub element of a resource.
@@ -33,10 +55,14 @@ type CRUDService[T Resource] interface {
 	Read(ctx context.Context, id ID, resource *T) error
 
 	// FindAll retrieves all resources from the database matching the provided criteria.
-	FindAll(ctx context.Context, resources *[]T, criteria interface{}) error
+	// To enable parsing to other object types, this will accept an interface
+	FindAll(ctx context.Context, resources interface{}, criteria interface{}) error
 
 	// ReadAll retrieves all resources from the database.
 	ReadAll(ctx context.Context, resources *[]T) error
+
+	// ReadAll retrieves all resources from the database.
+	ReadAllRaw(ctx context.Context, resources interface{}) error
 
 	// UpdateWithCriteria updates a resource in the database matching the provided criteria.
 	UpdateWithCriteria(ctx context.Context, resource T, criteria interface{}) error
@@ -61,10 +87,26 @@ type CRUDService[T Resource] interface {
 }
 
 var (
-	ErrIDConversionError     = errors.New("error converting ID")
+	ErrIDConversionError = errors.New("error converting ID")
+	ErrInvalidPointer    = errors.New("invalid pointer")
+	ErrInvalidContext    = errors.New("invalid context")
+
+	ErrForbidden             = errors.New("user is not authorised to perform this action")
+	ErrBadSyntax             = errors.New("bad syntax")
 	ErrResourceNotFound      = errors.New("resource not found")
 	ErrResourceAlreadyExists = errors.New("resource already exists")
 	ErrUnknownError          = errors.New("unknown error")
-	ErrInvalidPointer        = errors.New("invalid pointer")
-	ErrBadSyntax             = errors.New("bad syntax")
+)
+
+const (
+	UnknownUser = ID("unknown")
+	UserCtxKey  = CtxKey("user")
+)
+
+type Operation string
+
+const (
+	READ   Operation = "read"
+	DELETE Operation = "delete"
+	UPDATE Operation = "update"
 )

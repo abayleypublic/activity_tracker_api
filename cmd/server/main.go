@@ -10,6 +10,7 @@ import (
 	secretmanager "cloud.google.com/go/secretmanager/apiv1"
 	"cloud.google.com/go/secretmanager/apiv1/secretmanagerpb"
 	"github.com/AustinBayley/activity_tracker_api/pkg/api"
+	"github.com/AustinBayley/activity_tracker_api/pkg/service"
 )
 
 const (
@@ -115,7 +116,16 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	cfg := api.NewConfig(env, mongoURI, dbName, port, projectID, mapsCreds.key)
+	user := os.Getenv("USER")
+	admin, err := strconv.ParseBool(os.Getenv("ADMIN"))
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	cfg := api.NewConfig(env, mongoURI, dbName, port, projectID, mapsCreds.key, service.RequestContext{
+		UserID: service.ID(user),
+		Admin:  admin,
+	})
 
 	a, err := api.NewAPI(cfg)
 
