@@ -83,6 +83,10 @@ func (c Challenge) GetCreatedDate() service.Time {
 	return *c.CreatedDate
 }
 
+func (c Challenge) CanBeModifiedBy(userID service.ID, admin bool) bool {
+	return c.CreatedBy == userID || admin
+}
+
 var (
 	_ service.Resource               = (*Challenge)(nil)
 	_ service.CRUDService[Challenge] = (*Challenges)(nil)
