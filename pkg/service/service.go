@@ -22,7 +22,9 @@ type Attribute interface {
 
 type CRUDService[T Resource] interface {
 	Create(ctx context.Context, resource T) (ID, error)
+	FindResource(ctx context.Context, resource *T, criteria interface{}) error
 	Read(ctx context.Context, id ID, resource *T) error
+	FindAll(ctx context.Context, resources *[]T, criteria interface{}) error
 	ReadAll(ctx context.Context, resources *[]T) error
 	Update(ctx context.Context, resource T) error
 	Delete(ctx context.Context, id ID) error
@@ -52,9 +54,9 @@ func New[T Resource](collection *mongo.Collection) *Service[T] {
 	return &Service[T]{collection, "_id"}
 }
 
-func (s *Service[T]) Read(ctx context.Context, resourceID ID, resource *T) error {
+func (s *Service[T]) FindResource(ctx context.Context, resource *T, criteria interface{}) error {
 
-	if err := s.FindOne(ctx, bson.D{{Key: s.IDKey, Value: resourceID}}).Decode(resource); err != nil {
+	if err := s.FindOne(ctx, criteria).Decode(resource); err != nil {
 		switch err {
 		case mongo.ErrNoDocuments:
 			return ErrResourceNotFound
@@ -65,21 +67,31 @@ func (s *Service[T]) Read(ctx context.Context, resourceID ID, resource *T) error
 	return nil
 }
 
-// ReadAll retrieves all users from the MongoDB collection.
-// It returns a slice of PartialUser instances and any error encountered.
-func (s *Service[T]) ReadAll(ctx context.Context, resources *[]T) error {
+func (s *Service[T]) Read(ctx context.Context, resourceID ID, resource *T) error {
+	return s.FindResource(ctx, resource, bson.D{{Key: s.IDKey, Value: resourceID}})
+}
 
-	cur, err := s.Find(ctx, bson.D{})
+func (s *Service[T]) FindAll(ctx context.Context, resources *[]T, criteria interface{}) error {
+
+	cur, err := s.Find(ctx, criteria)
 	if err != nil {
+		log.Println(err)
 		return ErrUnknownError
 	}
 
 	if err = cur.All(ctx, resources); err != nil {
+		log.Println(err)
 		return ErrUnknownError
 	}
 
 	return nil
 
+}
+
+// ReadAll retrieves all users from the MongoDB collection.
+// It returns a slice of PartialUser instances and any error encountered.
+func (s *Service[T]) ReadAll(ctx context.Context, resources *[]T) error {
+	return s.FindAll(ctx, resources, bson.D{})
 }
 
 func (s *Service[T]) Create(ctx context.Context, resource T) (ID, error) {
@@ -201,7 +213,7 @@ func (s *Service[T]) AppendAttribute(ctx context.Context, resourceID ID, attribu
 
 func (s *Service[T]) RemoveAttribute(ctx context.Context, resourceID ID, attributeKey string, attributeID ID) error {
 
-	res, err := s.UpdateOne(ctx, bson.D{{Key: s.IDKey, Value: resourceID}}, bson.D{{Key: "$pull", Value: bson.D{{Key: attributeKey, Value: bson.M{"$or": bson.D{{Key: s.IDKey, Value: attributeID}, {Key: "$eq", Value: attributeID}}}}}}})
+	res, err := s.UpdateOne(ctx, bson.D{{Key: s.IDKey, Value: resourceID}}, bson.D{{Key: "$pull", Value: bson.M{"$or": []bson.D{{{Key: attributeKey, Value: attributeID}}, {{Key: attributeKey, Value: bson.M{s.IDKey: attributeID}}}}}}})
 	if err != nil {
 		return ErrUnknownError
 	}

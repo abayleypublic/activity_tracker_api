@@ -9,10 +9,11 @@ import (
 
 type Activities struct {
 	*mongo.Collection
+	*service.Service[Activity]
 }
 
 func NewActivities(c *mongo.Collection) *Activities {
-	return &Activities{c}
+	return &Activities{c, service.New[Activity](c)}
 }
 
 type ActivityType string
@@ -38,6 +39,7 @@ var (
 
 type Activity struct {
 	ID          service.ID    `json:"id" bson:"_id"`
+	UserID      service.ID    `json:"userID" bson:"userID"`
 	CreatedDate *service.Time `json:"createdDate" bson:"createdDate"`
 	Type        ActivityType  `json:"type" bson:"type"`
 	Value       float64       `json:"value" bson:"value"`
@@ -49,6 +51,10 @@ func (a Activity) GetID() service.ID {
 	return a.ID
 }
 
+func (a Activity) GetCreatedDate() service.Time {
+	return *a.CreatedDate
+}
+
 func New(Type ActivityType, Value float64) Activity {
 	return Activity{
 		ID:    service.NewID(),
@@ -58,5 +64,6 @@ func New(Type ActivityType, Value float64) Activity {
 }
 
 var (
-	_ service.Attribute = (*Activity)(nil)
+	_ service.Resource              = (*Activity)(nil)
+	_ service.CRUDService[Activity] = (*Activities)(nil)
 )

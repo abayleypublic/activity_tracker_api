@@ -5,13 +5,13 @@ import (
 
 	"github.com/AustinBayley/activity_tracker_api/pkg/activities"
 	"github.com/AustinBayley/activity_tracker_api/pkg/service"
+	"go.mongodb.org/mongo-driver/bson"
 )
 
-// TODO - implement
 func (u *Users) ReadUserActivity(ctx context.Context, id service.ID, aID service.ID) (activities.Activity, error) {
 
 	activity := activities.Activity{}
-	if err := u.ReadSingleAttribute(ctx, id, "activities", aID, &activity); err != nil {
+	if err := u.activities.FindResource(ctx, &activity, bson.D{{Key: "userID", Value: id}, {Key: u.activities.IDKey, Value: aID}}); err != nil {
 		return activity, err
 	}
 
@@ -37,18 +37,11 @@ func (u *Users) UpdateUserActivity(ctx context.Context, userID service.ID, activ
 // CreateUserActivity adds a new activity to the user's activities.
 // It returns the id of the inserted activity and an error if any occurred.
 func (u *Users) CreateUserActivity(ctx context.Context, userID service.ID, activity activities.Activity) (service.ID, error) {
-
-	res, err := u.AppendAttribute(ctx, userID, "activities", activity)
-	if err != nil {
-		return "", err
-	}
-
-	return res, nil
-
+	return u.activities.Create(ctx, activity)
 }
 
 // DeleteUserActivity removes an activity with the given id from the user's activities.
 // It returns a boolean indicating whether the deletion was successful and an error if any occurred.
 func (u *Users) DeleteUserActivity(ctx context.Context, userID service.ID, activityID service.ID) error {
-	return u.RemoveAttribute(ctx, userID, "activities", activityID)
+	return u.activities.Delete(ctx, activityID)
 }

@@ -1,16 +1,9 @@
-// Package challenges provides functionality related to challenges in the activity tracker.
-package challenges
+package members
 
 import (
-	"errors"
-
 	"github.com/AustinBayley/activity_tracker_api/pkg/service"
 	"github.com/AustinBayley/activity_tracker_api/pkg/targets"
 	"github.com/AustinBayley/activity_tracker_api/pkg/users"
-)
-
-var (
-	ErrResourceNotFound = errors.New("resource not found")
 )
 
 // Member is a type that embeds the User type from the users package.

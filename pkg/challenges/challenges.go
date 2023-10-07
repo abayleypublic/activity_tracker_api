@@ -77,20 +77,10 @@ func (c *PartialChallengeWithTarget) UnmarshalBSON(b []byte) error {
 type Challenge struct {
 	PartialChallengeWithTarget `bson:",inline"`
 	CreatedDate                *service.Time `json:"createdDate" bson:"createdDate"`
-	Members                    []Member      `json:"members,omitempty" bson:"members"`
 }
 
 func (c Challenge) GetCreatedDate() service.Time {
 	return *c.CreatedDate
-}
-
-func (c *Challenge) MarshalBSON() ([]byte, error) {
-	type RawChallenge Challenge
-	if c.Members == nil {
-		c.Members = make([]Member, 0)
-	}
-
-	return bson.Marshal((*RawChallenge)(c))
 }
 
 var (

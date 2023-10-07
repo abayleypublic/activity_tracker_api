@@ -184,6 +184,7 @@ func (a *API) PostUserActivity(req typhon.Request) Response {
 		return NewResponse(UnprocessableEntity("error decoding activity", err))
 	}
 	activity.ID = service.NewID()
+	activity.UserID = userID
 
 	res, err := a.users.CreateUserActivity(req.Context, userID, activity)
 	if err != nil {
@@ -284,4 +285,52 @@ func (a *API) GetUserActivities(req typhon.Request) Response {
 	}
 
 	return NewResponse(as)
+}
+
+func (a *API) JoinChallenge(req typhon.Request) Response {
+
+	userID, ok := a.Params(req)["userID"]
+	if !ok {
+		return NewResponse(BadRequest("user id not supplied", nil))
+	}
+
+	id, ok := a.Params(req)["id"]
+	if !ok {
+		return NewResponse(BadRequest("challenge id not supplied", nil))
+	}
+
+	_, err := a.users.JoinChallenge(req.Context, service.ID(userID), service.ID(id))
+	if err != nil {
+		switch err {
+		case service.ErrResourceAlreadyExists:
+			return NewResponse(Conflict(err.Error(), err))
+		}
+		return NewResponse(InternalServer(err.Error(), err))
+	}
+
+	return NewResponseWithCode(nil, http.StatusNoContent)
+}
+
+func (a *API) LeaveChallenge(req typhon.Request) Response {
+
+	userID, ok := a.Params(req)["userID"]
+	if !ok {
+		return NewResponse(BadRequest("user id not supplied", nil))
+	}
+
+	id, ok := a.Params(req)["id"]
+	if !ok {
+		return NewResponse(BadRequest("challenge id not supplied", nil))
+	}
+
+	err := a.users.LeaveChallenge(req.Context, service.ID(userID), service.ID(id))
+	if err != nil {
+		switch err {
+		case service.ErrResourceNotFound:
+			return NewResponse(NotFound(err.Error(), err))
+		}
+		return NewResponse(InternalServer(err.Error(), err))
+	}
+
+	return NewResponseWithCode(nil, http.StatusNoContent)
 }

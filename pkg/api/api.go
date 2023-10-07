@@ -14,7 +14,7 @@ import (
 	"github.com/AustinBayley/activity_tracker_api/pkg/admin"
 	"github.com/AustinBayley/activity_tracker_api/pkg/auth"
 	"github.com/AustinBayley/activity_tracker_api/pkg/challenges"
-	"github.com/AustinBayley/activity_tracker_api/pkg/locations"
+	"github.com/AustinBayley/activity_tracker_api/pkg/targets/locations"
 	"github.com/AustinBayley/activity_tracker_api/pkg/users"
 	"github.com/monzo/typhon"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -87,9 +87,9 @@ type API struct {
 func NewAPI(cfg Config) (*API, error) {
 
 	db := NewDB(cfg.MongodbURI, cfg.DBName)
-	users := users.NewUsers(db.Collection("users"))
 	challenges := challenges.NewChallenges(db.Collection("challenges"))
 	activities := activities.NewActivities(db.Collection("activities"))
+	users := users.NewUsers(db.Collection("users"), activities)
 
 	auth, err := auth.NewAuth(cfg.ProjectID)
 	if err != nil {
@@ -138,27 +138,31 @@ func (a *API) Start() {
 	a.PUT("/admin/:userID", serve(a.PutAdmin, []typhon.Filter{a.ValidUserFilter}))
 	a.DELETE("/admin/:userID", serve(a.DeleteAdmin, []typhon.Filter{a.ValidUserFilter}))
 
-	// // Challenges Routes
+	// Challenges Routes
 	a.GET("/challenges", serve(a.GetChallenges, []typhon.Filter{}))
 	a.POST("/challenges", serve(a.PostChallenge, []typhon.Filter{}))
 	a.GET("/challenges/:id", serve(a.GetChallenge, []typhon.Filter{}))
 	a.DELETE("/challenges/:id", serve(a.DeleteChallenge, []typhon.Filter{}))
 	a.PATCH("/challenges/:id", serve(a.PatchChallenge, []typhon.Filter{}))
-	a.PUT("/challenges/:id/members/:userID", serve(a.PutMember, []typhon.Filter{a.ValidUserFilter}))
-	a.DELETE("/challenges/:id/members/:userID", serve(a.DeleteMember, []typhon.Filter{a.ValidUserFilter}))
 
-	// // User routes
+	// User routes
 	a.GET("/users", serve(a.GetUsers, []typhon.Filter{}))
 	a.GET("/users/:userID", serve(a.GetUser, []typhon.Filter{}))
 	a.PATCH("/users/:userID", serve(a.PatchUser, []typhon.Filter{a.ValidUserFilter}))
 	a.DELETE("/users/:userID", serve(a.DeleteUser, []typhon.Filter{a.ValidUserFilter}))
 	// Because this method will only run once, a valid user filter is not required as it will not change other than via patch or delete requests
 	a.PUT("/users/:userID", serve(a.PutUser, []typhon.Filter{}))
+
+	// User activities routes
 	a.GET("/users/:userID/activities", serve(a.GetUserActivities, []typhon.Filter{}))
 	a.POST("/users/:userID/activities", serve(a.PostUserActivity, []typhon.Filter{a.ValidUserFilter}))
 	a.GET("/users/:userID/activities/:activityID", serve(a.GetUserActivity, []typhon.Filter{}))
 	a.PATCH("/users/:userID/activities/:activityID", serve(a.PatchUserActivity, []typhon.Filter{a.ValidUserFilter}))
 	a.DELETE("/users/:userID/activities/:activityID", serve(a.DeleteUserActivity, []typhon.Filter{a.ValidUserFilter}))
+
+	// User challenge routes
+	a.PUT("/users/:userID/challenges/:id", serve(a.JoinChallenge, []typhon.Filter{a.ValidUserFilter}))
+	a.DELETE("/users/:userID/challenges/:id", serve(a.LeaveChallenge, []typhon.Filter{a.ValidUserFilter}))
 
 	// Make sure body filtering and logging go last!
 	svc := a.Serve().

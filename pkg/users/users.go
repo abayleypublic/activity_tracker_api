@@ -2,29 +2,22 @@
 package users
 
 import (
-	"errors"
-
 	"github.com/AustinBayley/activity_tracker_api/pkg/activities"
 	"github.com/AustinBayley/activity_tracker_api/pkg/service"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-var (
-	ErrUserNotFound      = errors.New("user not found")
-	ErrResourceNotFound  = errors.New("resource not found")
-	ErrUserAlreadyExists = errors.New("user already exists")
-)
-
 // Users is a wrapper around a MongoDB collection of users.
 type Users struct {
 	*mongo.Collection
 	*service.Service[User]
+	activities *activities.Activities
 }
 
 // NewUsers creates a new Users instance with the provided MongoDB collection.
-func NewUsers(c *mongo.Collection) *Users {
-	return &Users{c, service.New[User](c)}
+func NewUsers(c *mongo.Collection, a *activities.Activities) *Users {
+	return &Users{c, service.New[User](c), a}
 }
 
 // PartialUser represents a user with only the ID, first name, and last name fields.
@@ -41,10 +34,10 @@ func (u PartialUser) GetID() service.ID {
 // User represents a full user with all fields, including activities.
 type User struct {
 	PartialUser `bson:",inline"`
-	CreatedDate *service.Time         `json:"createdDate" bson:"createdDate"`
-	Email       string                `json:"email,omitempty" bson:"email"`
-	Bio         string                `json:"bio,omitempty" bson:"bio"`
-	Activities  []activities.Activity `json:"activities,omitempty" bson:"activities"`
+	CreatedDate *service.Time `json:"createdDate" bson:"createdDate"`
+	Email       string        `json:"email,omitempty" bson:"email"`
+	Bio         string        `json:"bio,omitempty" bson:"bio"`
+	Challenges  []service.ID  `json:"challenges" bson:"challenges"`
 }
 
 func (u User) GetCreatedDate() service.Time {
@@ -53,8 +46,9 @@ func (u User) GetCreatedDate() service.Time {
 
 func (u *User) MarshalBSON() ([]byte, error) {
 	type RawUser User
-	if u.Activities == nil {
-		u.Activities = make([]activities.Activity, 0)
+
+	if u.Challenges == nil {
+		u.Challenges = make([]service.ID, 0)
 	}
 
 	return bson.Marshal((*RawUser)(u))
