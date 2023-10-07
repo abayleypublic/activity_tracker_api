@@ -9,7 +9,7 @@ import (
 
 type Activities struct {
 	*mongo.Collection
-	*service.Service[Activity]
+	*service.MongoDBService[Activity]
 }
 
 func NewActivities(c *mongo.Collection) *Activities {

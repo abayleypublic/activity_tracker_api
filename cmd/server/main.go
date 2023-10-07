@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	projectID string = "542135123656"
+	projectID string = "activity-tracker-bfaaa"
 	dbName    string = "activity-tracker"
 )
 

@@ -50,3 +50,7 @@ func (a *Admin) SetAdmin(ctx context.Context, id service.ID, admin bool) error {
 
 	return nil
 }
+
+func (a *Admin) RevokeTokens(ctx context.Context, id service.ID) error {
+	return a.auth.RevokeRefreshTokens(ctx, string(id))
+}

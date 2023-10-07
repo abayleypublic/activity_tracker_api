@@ -21,12 +21,7 @@ func (u *Users) ReadUserActivity(ctx context.Context, id service.ID, aID service
 
 func (u *Users) UpdateUserActivity(ctx context.Context, userID service.ID, activity activities.Activity) (activities.Activity, error) {
 
-	if err := u.DeleteUserActivity(ctx, userID, activity.ID); err != nil {
-		return activities.Activity{}, err
-	}
-
-	_, err := u.CreateUserActivity(ctx, userID, activity)
-	if err != nil {
+	if err := u.activities.UpdateWithCriteria(ctx, activity, bson.D{{Key: u.activities.IDKey, Value: activity.ID}, {Key: "userID", Value: userID}}); err != nil {
 		return activities.Activity{}, err
 	}
 
@@ -36,12 +31,12 @@ func (u *Users) UpdateUserActivity(ctx context.Context, userID service.ID, activ
 
 // CreateUserActivity adds a new activity to the user's activities.
 // It returns the id of the inserted activity and an error if any occurred.
-func (u *Users) CreateUserActivity(ctx context.Context, userID service.ID, activity activities.Activity) (service.ID, error) {
+func (u *Users) CreateUserActivity(ctx context.Context, activity activities.Activity) (service.ID, error) {
 	return u.activities.Create(ctx, activity)
 }
 
 // DeleteUserActivity removes an activity with the given id from the user's activities.
 // It returns a boolean indicating whether the deletion was successful and an error if any occurred.
 func (u *Users) DeleteUserActivity(ctx context.Context, userID service.ID, activityID service.ID) error {
-	return u.activities.Delete(ctx, activityID)
+	return u.activities.DeleteWithCriteria(ctx, bson.D{{Key: u.activities.IDKey, Value: activityID}, {Key: "userID", Value: userID}})
 }

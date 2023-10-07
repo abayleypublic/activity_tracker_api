@@ -13,7 +13,7 @@ import (
 // Challenges wraps a MongoDB collection of challenges.
 type Challenges struct {
 	*mongo.Collection
-	*service.Service[Challenge]
+	*service.MongoDBService[Challenge]
 }
 
 // NewChallenges creates a new Challenges instance with the provided MongoDB collection.

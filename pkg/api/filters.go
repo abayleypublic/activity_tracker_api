@@ -1,7 +1,9 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
+	"log"
 
 	"github.com/AustinBayley/activity_tracker_api/pkg/service"
 	"github.com/monzo/slog"
@@ -27,11 +29,20 @@ func ForbiddenResponse(req typhon.Request, cause string, err error) typhon.Respo
 func Logging(req typhon.Request, svc typhon.Service) typhon.Response {
 
 	res := svc(req)
+	userMap := res.Request.Context.Value(service.CtxKey("user"))
+	user := "unknown"
+	admin := false
+	if userMap != nil {
+		log.Println(userMap)
+		um := userMap.(map[string]interface{})
+		user = string(um["userID"].(service.ID))
+		admin = um["admin"].(bool)
+	}
 
 	if err := res.Error; err != nil {
-		slog.Error(req.Context, "📡 %v %v - %v - %v - %v", req.Method, req.URL, req.RemoteAddr, res.StatusCode, res.Error.Error())
+		slog.Error(req.Context, "📡 %v %v - %v - %v - %v - %v - %v", req.Method, req.URL, req.RemoteAddr, user, admin, res.StatusCode, res.Error.Error())
 	} else {
-		slog.Debug(req.Context, "📡 %v %v - %v - %v", req.Method, req.URL, req.RemoteAddr, res.StatusCode)
+		slog.Debug(req.Context, "📡 %v %v - %v - %v - %v - %v", req.Method, req.URL, req.RemoteAddr, user, admin, res.StatusCode)
 	}
 
 	return res
@@ -45,30 +56,17 @@ func (a *API) ValidAuthFilter(req typhon.Request, svc typhon.Service) typhon.Res
 		return ForbiddenResponse(req, err.Error(), err)
 	}
 
-	_, err = a.auth.GetValidToken(req.Context, t)
-	if err != nil {
-		return ForbiddenResponse(req, err.Error(), err)
-	}
-
-	return svc(req)
-}
-
-// Only allow admin users
-func (a *API) AdminAuthFilter(req typhon.Request, svc typhon.Service) typhon.Response {
-
-	t, err := a.auth.GetAuthToken(req)
-	if err != nil {
-		return UnauthorizedResponse(req, err.Error(), err)
-	}
-
 	token, err := a.auth.GetValidToken(req.Context, t)
 	if err != nil {
 		return ForbiddenResponse(req, err.Error(), err)
 	}
 
-	if admin := a.auth.IsAdmin(*token); !admin {
-		return ForbiddenResponse(req, "user is not authorized to perform this action", err)
-	}
+	tokenSubject := a.auth.GetUserID(req.Context, *token)
+
+	req.Context = context.WithValue(req.Context, service.CtxKey("user"), map[string]interface{}{
+		"admin":  false,
+		"userID": tokenSubject,
+	})
 
 	return svc(req)
 }
@@ -97,11 +95,45 @@ func (a *API) ValidUserFilter(req typhon.Request, svc typhon.Service) typhon.Res
 	}
 
 	tokenSubject := a.auth.GetUserID(req.Context, *token)
+	req.Context = context.WithValue(req.Context, service.CtxKey("user"), map[string]interface{}{
+		"admin":  false,
+		"userID": tokenSubject,
+	})
 
 	if admin := a.auth.IsAdmin(*token); !admin && tokenSubject != userID {
 		return ForbiddenResponse(req, "user is not authorized to perform this action", err)
+	} else if admin {
+		req.Context = context.WithValue(req.Context, service.CtxKey("user"), map[string]interface{}{
+			"admin":  true,
+			"userID": tokenSubject,
+		})
 	}
 
+	return svc(req)
+}
+
+// Only allow admin users
+func (a *API) AdminAuthFilter(req typhon.Request, svc typhon.Service) typhon.Response {
+
+	t, err := a.auth.GetAuthToken(req)
+	if err != nil {
+		return UnauthorizedResponse(req, err.Error(), err)
+	}
+
+	token, err := a.auth.GetValidToken(req.Context, t)
+	if err != nil {
+		return ForbiddenResponse(req, err.Error(), err)
+	}
+
+	tokenSubject := a.auth.GetUserID(req.Context, *token)
+	req.Context = context.WithValue(req.Context, service.CtxKey("user"), map[string]interface{}{
+		"admin":  true,
+		"userID": tokenSubject,
+	})
+
+	if admin := a.auth.IsAdmin(*token); !admin {
+		return ForbiddenResponse(req, "user is not authorized to perform this action", err)
+	}
 	return svc(req)
 }
 

@@ -1,0 +1,200 @@
+package service
+
+import (
+	"context"
+	"fmt"
+	"log"
+
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+)
+
+var (
+	_ CRUDService[Resource] = (*MongoDBService[Resource])(nil)
+)
+
+type MongoDBService[T Resource] struct {
+	*mongo.Collection
+	IDKey string
+}
+
+func New[T Resource](collection *mongo.Collection) *MongoDBService[T] {
+	return &MongoDBService[T]{collection, "_id"}
+}
+
+func (s *MongoDBService[T]) FindResource(ctx context.Context, resource *T, criteria interface{}) error {
+
+	if err := s.FindOne(ctx, criteria).Decode(resource); err != nil {
+		switch err {
+		case mongo.ErrNoDocuments:
+			return ErrResourceNotFound
+		}
+		return ErrUnknownError
+	}
+
+	return nil
+}
+
+func (s *MongoDBService[T]) Read(ctx context.Context, resourceID ID, resource *T) error {
+	return s.FindResource(ctx, resource, bson.D{{Key: s.IDKey, Value: resourceID}})
+}
+
+func (s *MongoDBService[T]) FindAll(ctx context.Context, resources *[]T, criteria interface{}) error {
+
+	cur, err := s.Find(ctx, criteria)
+	if err != nil {
+		return ErrUnknownError
+	}
+
+	if err = cur.All(ctx, resources); err != nil {
+		return ErrUnknownError
+	}
+
+	return nil
+
+}
+
+// ReadAll retrieves all users from the MongoDB collection.
+// It returns a slice of PartialUser instances and any error encountered.
+func (s *MongoDBService[T]) ReadAll(ctx context.Context, resources *[]T) error {
+	return s.FindAll(ctx, resources, bson.D{})
+}
+
+func (s *MongoDBService[T]) Create(ctx context.Context, resource T) (ID, error) {
+	res, err := s.InsertOne(ctx, &resource)
+	if err != nil {
+		log.Println(err)
+		if mongo.IsDuplicateKeyError(err) {
+			return "", ErrResourceAlreadyExists
+		}
+		log.Println(err)
+		return "", ErrUnknownError
+	}
+
+	return ID(res.InsertedID.(string)), nil
+}
+
+func (s *MongoDBService[T]) UpdateWithCriteria(ctx context.Context, resource T, criteria interface{}) error {
+	opts := options.Update().SetUpsert(true)
+	res, err := s.UpdateOne(ctx, criteria, bson.D{{Key: "$set", Value: resource}}, opts)
+	if err != nil {
+		return ErrUnknownError
+	}
+
+	if res.UpsertedCount != 1 {
+		return ErrResourceNotFound
+	}
+
+	return nil
+}
+
+func (s *MongoDBService[T]) Update(ctx context.Context, resource T) error {
+	return s.UpdateWithCriteria(ctx, resource, bson.D{})
+}
+
+func (s *MongoDBService[T]) DeleteWithCriteria(ctx context.Context, criteria interface{}) error {
+	res, err := s.DeleteOne(ctx, criteria)
+	if err != nil {
+		return ErrUnknownError
+	}
+
+	if res.DeletedCount != 1 {
+		return ErrResourceNotFound
+	}
+
+	return nil
+}
+
+func (s *MongoDBService[T]) Delete(ctx context.Context, id ID) error {
+	return s.DeleteWithCriteria(ctx, bson.D{{Key: s.IDKey, Value: id}})
+}
+
+func (s *MongoDBService[T]) ReadAttribute(ctx context.Context, resourceID ID, attributeKey string, attributes interface{}) error {
+
+	opts := options.FindOne().SetProjection(bson.M{s.IDKey: 0, attributeKey: 1})
+
+	raw, err := s.FindOne(ctx, bson.D{{Key: s.IDKey, Value: resourceID}}, opts).DecodeBytes()
+	if err != nil {
+		switch err {
+		case mongo.ErrNoDocuments:
+			return ErrResourceNotFound
+		}
+		return ErrUnknownError
+	}
+
+	element := raw.Lookup(attributeKey)
+	err = element.Unmarshal(attributes)
+	if err != nil {
+		return ErrInvalidPointer
+	}
+
+	return nil
+}
+
+func (s *MongoDBService[T]) ReadSingleAttribute(ctx context.Context, resourceID ID, attributeKey string, attributeID ID, attribute interface{}) error {
+
+	// Set the projection to only return the elements that match a condition & then only return one
+	opts := options.FindOne().SetProjection(bson.M{s.IDKey: 0, attributeKey: bson.M{"$elemMatch": bson.M{s.IDKey: attributeID}}})
+	raw, err := s.FindOne(ctx, bson.D{{Key: s.IDKey, Value: resourceID}}, opts).DecodeBytes()
+
+	if err != nil {
+		switch err {
+		case mongo.ErrNoDocuments:
+			return ErrResourceNotFound
+		}
+		return ErrUnknownError
+	}
+
+	element := raw.Lookup(attributeKey)
+	arr, ok := element.ArrayOK()
+	if !ok {
+		return ErrResourceNotFound
+	}
+
+	err = arr.Index(0).Value().Unmarshal(attribute)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *MongoDBService[T]) AppendAttribute(ctx context.Context, resourceID ID, attributeKey string, attribute Attribute) (ID, error) {
+
+	res, err := s.UpdateOne(ctx,
+		bson.D{
+			{Key: s.IDKey, Value: resourceID},
+			{Key: attributeKey, Value: bson.M{"$ne": string(attribute.GetID())}},
+			{Key: fmt.Sprintf("%s.%s", attributeKey, s.IDKey), Value: bson.M{"$ne": string(attribute.GetID())}},
+		},
+		bson.D{{Key: "$push", Value: bson.M{attributeKey: attribute}}},
+	)
+	if err != nil {
+		return "", ErrUnknownError
+	}
+
+	if res.ModifiedCount != 1 {
+		if res.MatchedCount == 0 {
+			return "", ErrResourceAlreadyExists
+		}
+
+		return "", ErrResourceNotFound
+	}
+
+	return attribute.GetID(), nil
+}
+
+func (s *MongoDBService[T]) RemoveAttribute(ctx context.Context, resourceID ID, attributeKey string, attributeID ID) error {
+
+	res, err := s.UpdateOne(ctx, bson.D{{Key: s.IDKey, Value: resourceID}}, bson.D{{Key: "$pull", Value: bson.M{"$or": []bson.D{{{Key: attributeKey, Value: attributeID}}, {{Key: attributeKey, Value: bson.M{s.IDKey: attributeID}}}}}}})
+	if err != nil {
+		return ErrUnknownError
+	}
+
+	if res.ModifiedCount != 1 {
+		return ErrResourceNotFound
+	}
+
+	return nil
+}

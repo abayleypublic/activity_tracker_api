@@ -186,7 +186,7 @@ func (a *API) PostUserActivity(req typhon.Request) Response {
 	activity.ID = service.NewID()
 	activity.UserID = userID
 
-	res, err := a.users.CreateUserActivity(req.Context, userID, activity)
+	res, err := a.users.CreateUserActivity(req.Context, activity)
 	if err != nil {
 		return NewResponse(InternalServer(err.Error(), err))
 	}

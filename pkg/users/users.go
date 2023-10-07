@@ -11,7 +11,7 @@ import (
 // Users is a wrapper around a MongoDB collection of users.
 type Users struct {
 	*mongo.Collection
-	*service.Service[User]
+	*service.MongoDBService[User]
 	activities *activities.Activities
 }
 

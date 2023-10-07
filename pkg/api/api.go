@@ -134,9 +134,9 @@ func (a *API) Start() {
 	})
 
 	// Admin Routes
-	a.GET("/admin/:userID", serve(a.GetAdmin, []typhon.Filter{a.ValidUserFilter}))
-	a.PUT("/admin/:userID", serve(a.PutAdmin, []typhon.Filter{a.ValidUserFilter}))
-	a.DELETE("/admin/:userID", serve(a.DeleteAdmin, []typhon.Filter{a.ValidUserFilter}))
+	a.GET("/admin/:userID", serve(a.GetAdmin, []typhon.Filter{a.AdminAuthFilter}))
+	a.PUT("/admin/:userID", serve(a.PutAdmin, []typhon.Filter{a.AdminAuthFilter}))
+	a.DELETE("/admin/:userID", serve(a.DeleteAdmin, []typhon.Filter{a.AdminAuthFilter}))
 
 	// Challenges Routes
 	a.GET("/challenges", serve(a.GetChallenges, []typhon.Filter{}))
@@ -147,7 +147,7 @@ func (a *API) Start() {
 
 	// User routes
 	a.GET("/users", serve(a.GetUsers, []typhon.Filter{}))
-	a.GET("/users/:userID", serve(a.GetUser, []typhon.Filter{}))
+	a.GET("/users/:userID", serve(a.GetUser, []typhon.Filter{a.ValidUserFilter}))
 	a.PATCH("/users/:userID", serve(a.PatchUser, []typhon.Filter{a.ValidUserFilter}))
 	a.DELETE("/users/:userID", serve(a.DeleteUser, []typhon.Filter{a.ValidUserFilter}))
 	// Because this method will only run once, a valid user filter is not required as it will not change other than via patch or delete requests
