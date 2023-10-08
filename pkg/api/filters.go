@@ -74,7 +74,7 @@ func (a *API) ActorFilter(req typhon.Request, svc typhon.Service) typhon.Respons
 	admin := a.auth.IsAdmin(*token)
 
 	// If admin claim or making anything other than a GET request, always check token is valid & not revoked
-	if admin || req.Method != http.MethodGet {
+	if admin || req.Method != http.MethodGet || req.URL.Path == "/profile" {
 		_, err = a.auth.GetValidToken(req.Context, t)
 		if err != nil {
 			return ForbiddenResponse(req, "invalid token", err)
@@ -89,11 +89,16 @@ func (a *API) ActorFilter(req typhon.Request, svc typhon.Service) typhon.Respons
 	return svc(req)
 }
 
-// Only allow valid tokens
-func (a *API) ValidAuthFilter(req typhon.Request, svc typhon.Service) typhon.Response {
+// Only allow requests with tokens
+func (a *API) HasAuthFilter(req typhon.Request, svc typhon.Service) typhon.Response {
+
+	reqCtx, err := service.GetActorContext(req.Context)
+	if err != nil {
+		return ForbiddenResponse(req, "user is not authorized to perform this action", err)
+	}
 
 	// If the user has not been set, return unauthorized
-	if user := req.Context.Value(service.UserCtxKey); user == nil || user.(service.RequestContext).UserID == service.UnknownUser {
+	if reqCtx.UserID == service.UnknownUser {
 		return ForbiddenResponse(req, "user is not authorized to perform this action", nil)
 	}
 

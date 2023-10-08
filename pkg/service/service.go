@@ -49,10 +49,13 @@ type CRUDService[T Resource] interface {
 	Create(ctx context.Context, resource T) (ID, error)
 
 	// FindResource queries the database for a resource matching the provided criteria.
-	FindResource(ctx context.Context, resource *T, criteria interface{}) error
+	FindResource(ctx context.Context, resource interface{}, criteria interface{}) error
 
 	// Read retrieves a resource from the database based on an ID.
 	Read(ctx context.Context, id ID, resource *T) error
+
+	// Read retrieves a resource from the database based on an ID but does not parse it into a specific type.
+	ReadRaw(ctx context.Context, id ID, resource interface{}) error
 
 	// FindAll retrieves all resources from the database matching the provided criteria.
 	// To enable parsing to other object types, this will accept an interface
@@ -61,7 +64,7 @@ type CRUDService[T Resource] interface {
 	// ReadAll retrieves all resources from the database.
 	ReadAll(ctx context.Context, resources *[]T) error
 
-	// ReadAll retrieves all resources from the database.
+	// ReadAll retrieves all resources from the database but does not parse them into a specific type.
 	ReadAllRaw(ctx context.Context, resources interface{}) error
 
 	// UpdateWithCriteria updates a resource in the database matching the provided criteria.

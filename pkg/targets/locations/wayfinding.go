@@ -2,12 +2,16 @@ package locations
 
 import (
 	"context"
+	"log"
 
 	"github.com/uber/h3-go/v4"
 	"googlemaps.github.io/maps"
 )
 
-type LatLng h3.LatLng
+type LatLng struct {
+	Lat float64 `json:"lat" bson:"lat"`
+	Lng float64 `json:"lng" bson:"lng"`
+}
 
 type Waypoint struct {
 	LatLng LatLng `json:"latlng" bson:"latlng"`
@@ -19,6 +23,10 @@ func (w Waypoint) DistanceTo(other Waypoint) float64 {
 }
 
 type Waypoints []Waypoint
+
+func (w Waypoints) First() Waypoint {
+	return w[0]
+}
 
 func (w Waypoints) Last() Waypoint {
 	return w[len(w)-1]
@@ -46,23 +54,21 @@ func LocationFromLatLng(latlng LatLng) (Location, error) {
 
 // Iterates over the waypoints and returns the location when the distance (total distance travelled by user) is reached
 func (w Waypoints) GetLocation(distance float64) (Location, error) {
+	previous := w[0]
 
-	var distanceSum float64
-	var previous *Waypoint
+	var distanceSum float64 = 0
 	// Iterate over each leg of the route and calculate the distance sum
-	for _, waypoint := range w {
-		if previous == nil {
-			previous = &waypoint
-			continue
-		}
+	for _, waypoint := range w[1:] {
 
 		distanceSum += previous.DistanceTo(waypoint)
 
 		// Check if the total distance has been reached
 		if distanceSum >= distance {
+			log.Println("Returing as distance sum is greater than distance")
 			return LocationFromLatLng(previous.LatLng)
 		}
 	}
 
-	return LocationFromLatLng(w.Last().LatLng)
+	log.Println("Returning end")
+	return LocationFromLatLng(w.First().LatLng)
 }

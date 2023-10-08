@@ -123,3 +123,24 @@ func (a *API) DeleteChallenge(req typhon.Request) Response {
 	return NewResponseWithCode(nil, http.StatusNoContent)
 
 }
+
+func (a *API) GetProgress(req typhon.Request) Response {
+
+	id, ok := a.Params(req)["id"]
+	if !ok {
+		return NewResponse(BadRequest("challenge ID not supplied", nil))
+	}
+
+	userID, ok := a.Params(req)["userID"]
+	if !ok {
+		return NewResponse(BadRequest("user ID not supplied", nil))
+	}
+
+	progress, err := a.challenges.GetProgress(req.Context, service.ID(id), service.ID(userID))
+	if err != nil {
+		return NewResponse(InternalServer(err.Error(), err))
+	}
+
+	return NewResponse(progress)
+
+}

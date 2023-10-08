@@ -35,7 +35,6 @@ func (u PartialUser) GetID() service.ID {
 type User struct {
 	PartialUser `bson:",inline"`
 	CreatedDate *service.Time `json:"createdDate" bson:"createdDate"`
-	Email       string        `json:"email,omitempty" bson:"email"`
 	Bio         string        `json:"bio,omitempty" bson:"bio"`
 	Challenges  []service.ID  `json:"challenges" bson:"challenges"`
 }
@@ -45,7 +44,7 @@ func (u User) GetCreatedDate() service.Time {
 }
 
 func (u User) CanBeReadBy(userID service.ID, admin bool) bool {
-	return u.ID == userID || admin
+	return true
 }
 
 func (u User) CanBeUpdatedBy(userID service.ID, admin bool) bool {

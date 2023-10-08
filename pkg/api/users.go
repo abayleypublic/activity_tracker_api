@@ -27,8 +27,7 @@ func (a *API) GetUser(req typhon.Request) Response {
 		return NewResponse(BadRequest("id not supplied", nil))
 	}
 
-	user := users.User{}
-	err := a.users.Read(req.Context, service.ID(id), &user)
+	user, err := a.users.ReadUser(req.Context, service.ID(id))
 	if err != nil {
 		return NewResponse(NotFound(err.Error(), err))
 	}
@@ -195,4 +194,20 @@ func (a *API) LeaveChallenge(req typhon.Request) Response {
 	}
 
 	return NewResponseWithCode(nil, http.StatusNoContent)
+}
+
+func (a *API) GetProfile(req typhon.Request) Response {
+
+	u, err := service.GetActorContext(req.Context)
+	if err != nil {
+		return NewResponse(Unauthorized("Could not determine user", err))
+	}
+
+	user := users.User{}
+	if err = a.users.Read(req.Context, u.UserID, &user); err != nil {
+		return NewResponse(NotFound(err.Error(), err))
+	}
+
+	return NewResponse(user)
+
 }

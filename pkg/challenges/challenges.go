@@ -6,6 +6,7 @@ import (
 
 	"github.com/AustinBayley/activity_tracker_api/pkg/service"
 	"github.com/AustinBayley/activity_tracker_api/pkg/targets"
+	"github.com/AustinBayley/activity_tracker_api/pkg/users"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -14,11 +15,12 @@ import (
 type Challenges struct {
 	*mongo.Collection
 	*service.MongoDBService[Challenge]
+	users *users.Users
 }
 
 // NewChallenges creates a new Challenges instance with the provided MongoDB collection.
-func NewChallenges(c *mongo.Collection) *Challenges {
-	return &Challenges{c, service.New[Challenge](c)}
+func NewChallenges(c *mongo.Collection, u *users.Users) *Challenges {
+	return &Challenges{c, service.New[Challenge](c), u}
 }
 
 // PartialChallenge represents a challenge with a subset of its fields mainly intended for parsing a request from the UI
@@ -39,8 +41,8 @@ func (bc BaseChallenge) GetID() service.ID {
 // PartialChallenge builds on BaseChallenge by adding the creator and target fields.
 type PartialChallenge struct {
 	BaseChallenge `bson:",inline"`
-	CreatedBy     service.ID `json:"createdBy" bson:"createdBy"`
-	CreatedDate   time.Time  `json:"createdDate" bson:"createdDate"`
+	CreatedBy     service.ID    `json:"createdBy" bson:"createdBy"`
+	CreatedDate   *service.Time `json:"createdDate" bson:"createdDate"`
 }
 
 type PartialChallengeWithTarget struct {

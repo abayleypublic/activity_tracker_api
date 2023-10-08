@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -22,7 +23,7 @@ func New[T Resource](collection *mongo.Collection) *MongoDBService[T] {
 	return &MongoDBService[T]{collection, "_id"}
 }
 
-func (s *MongoDBService[T]) FindResource(ctx context.Context, resource *T, criteria interface{}) error {
+func (s *MongoDBService[T]) FindResource(ctx context.Context, resource interface{}, criteria interface{}) error {
 
 	if err := s.FindOne(ctx, criteria).Decode(resource); err != nil {
 		switch err {
@@ -68,9 +69,26 @@ func (s *MongoDBService[T]) Read(ctx context.Context, resourceID ID, resource *T
 
 	ok, err := s.Permitted(ctx, bson.D{{Key: s.IDKey, Value: resourceID}}, READ)
 	if err != nil {
+		log.Println(err)
 		return err
 	}
 	if !ok {
+		log.Println("Forbidden")
+		return ErrForbidden
+	}
+
+	return s.FindResource(ctx, resource, bson.D{{Key: s.IDKey, Value: resourceID}})
+}
+
+func (s *MongoDBService[T]) ReadRaw(ctx context.Context, resourceID ID, resource interface{}) error {
+
+	ok, err := s.Permitted(ctx, bson.D{{Key: s.IDKey, Value: resourceID}}, READ)
+	if err != nil {
+		log.Println(err)
+		return err
+	}
+	if !ok {
+		log.Println("Forbidden")
 		return ErrForbidden
 	}
 

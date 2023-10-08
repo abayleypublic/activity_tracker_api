@@ -3,6 +3,8 @@ package targets
 import (
 	"context"
 	"errors"
+	"log"
+	"math"
 
 	"github.com/AustinBayley/activity_tracker_api/pkg/activities"
 	"github.com/AustinBayley/activity_tracker_api/pkg/targets/locations"
@@ -46,8 +48,28 @@ func (r RouteMovingTargetProgress) Percentage() float64 {
 }
 
 type RouteMovingTarget struct {
-	BaseTarget `bson:",inline"`
-	Route      Route `json:"route" bson:"route"`
+	BaseTarget    `bson:",inline"`
+	Route         Route   `json:"route" bson:"route"`
+	TotalDistance float64 `json:"totalDistance" bson:"totalDistance"`
+}
+
+func (t *RouteMovingTarget) MarshalBSON() ([]byte, error) {
+
+	type RawRouteMovingTarget RouteMovingTarget
+
+	if t.Route.Waypoints == nil || len(t.Route.Waypoints) < 2 {
+		return bson.Marshal((*RawRouteMovingTarget)(t))
+	}
+
+	previous := t.Route.Waypoints[0]
+
+	var distanceSum float64 = 0
+	for _, waypoint := range t.Route.Waypoints[1:] {
+		distanceSum += previous.DistanceTo(waypoint)
+	}
+	t.TotalDistance = distanceSum
+
+	return bson.Marshal((*RawRouteMovingTarget)(t))
 }
 
 func (t *RouteMovingTarget) Type() TargetType {
@@ -66,11 +88,21 @@ func (t *RouteMovingTarget) Evaluate(ctx context.Context, acts []activities.Acti
 
 	loc, err := t.Route.GetLocation(distance)
 	if err != nil {
+		log.Println(err)
 		return nil, ErrFindingLocation
 	}
 
+	var percent float64 = 0
+	if distance > 0 && t.TotalDistance > 0 {
+		log.Println("Here")
+		percent = math.Min((distance/t.TotalDistance)*100, 100)
+	}
+
+	log.Println(percent)
+	log.Println("This bit")
+
 	return RouteMovingTargetProgress{
-		Percent:  100.0,
+		Percent:  percent,
 		Location: loc,
 	}, nil
 

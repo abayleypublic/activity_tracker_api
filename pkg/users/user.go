@@ -12,6 +12,17 @@ const (
 	challengesKey = "challenges"
 )
 
+// Returns either a User or PartialUser depending on whether the user is the actor.
+func (u *Users) ReadUser(ctx context.Context, id service.ID) (PartialUser, error) {
+
+	user := PartialUser{}
+	if err := u.ReadRaw(ctx, service.ID(id), &user); err != nil {
+		return user, err
+	}
+	return user, nil
+
+}
+
 func (u *Users) JoinChallenge(ctx context.Context, userID service.ID, challengeID service.ID) (service.ID, error) {
 
 	res, err := u.AppendAttribute(ctx, userID, challengesKey, challengeID)
@@ -39,4 +50,21 @@ func (u *Users) LeaveChallenge(ctx context.Context, userID service.ID, challenge
 	}
 
 	return err
+}
+
+func (u *Users) IsUserMember(ctx context.Context, userID service.ID, challengeID service.ID) (bool, error) {
+
+	user := User{}
+	if err := u.Read(ctx, userID, &user); err != nil {
+		return false, err
+	}
+
+	for _, id := range user.Challenges {
+		if id == challengeID {
+			return true, nil
+		}
+	}
+
+	return false, nil
+
 }

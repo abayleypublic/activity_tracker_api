@@ -32,6 +32,7 @@ func (u *Users) UpdateUserActivity(ctx context.Context, userID service.ID, activ
 // CreateUserActivity adds a new activity to the user's activities.
 // It returns the id of the inserted activity and an error if any occurred.
 func (u *Users) CreateUserActivity(ctx context.Context, activity activities.Activity) (service.ID, error) {
+	// TODO: Trigger challenge evaluation
 	return u.activities.Create(ctx, activity)
 }
 
