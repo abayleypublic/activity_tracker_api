@@ -1,5 +1,8 @@
 data/
+test_data/
 tmp/
 main
-.env
+*.env
 .DS_Store
+report.json
+coverage.out

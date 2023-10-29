@@ -1,13 +1,13 @@
-version: "1"
+version: "3"
 services:
   api:
     build: 
       context: ./
-      dockerfile: ./local.dockerfile
+      dockerfile: ./docker-local.dockerfile
     env_file:
       - .env
     ports:
-      - "8000:5000"
+      - "8000:80"
     volumes:
       - ./:/app
       - $HOME/.config/gcloud/:/config:ro
@@ -15,3 +15,5 @@ services:
     image: mongo
     ports:
       - "27017:27017"
+    volumes:
+      - ./data:/data/db
