@@ -2,7 +2,7 @@ package locations
 
 import (
 	"context"
-	"log"
+	"math"
 
 	"github.com/uber/h3-go/v4"
 	"googlemaps.github.io/maps"
@@ -11,6 +11,13 @@ import (
 type LatLng struct {
 	Lat float64 `json:"lat" bson:"lat"`
 	Lng float64 `json:"lng" bson:"lng"`
+}
+
+func (l LatLng) AsRadians() LatLng {
+	return LatLng{
+		Lat: l.Lat * math.Pi / 180,
+		Lng: l.Lng * math.Pi / 180,
+	}
 }
 
 type Waypoint struct {
@@ -50,7 +57,31 @@ func LocationFromLatLng(latlng LatLng) (Location, error) {
 	}, nil
 }
 
-// TODO Implement functions from https://www.movable-type.co.uk/scripts/latlong.html to get more granular location data
+func getNewCoordinates(start LatLng, end LatLng, distance float64) LatLng {
+	const earthRadius = 6371
+	startRad := start.AsRadians()
+	endRad := end.AsRadians()
+
+	// Calculate bearing
+	deltaLng := endRad.Lng - startRad.Lng
+	y := math.Sin(deltaLng) * math.Cos(endRad.Lat)
+	x := math.Cos(startRad.Lat)*math.Sin(endRad.Lat) - math.Sin(startRad.Lat)*math.Cos(endRad.Lat)*math.Cos(deltaLng)
+	bearing := math.Atan2(y, x)
+
+	// Calculate new latitude
+	newLat := math.Asin(math.Sin(startRad.Lat)*math.Cos(distance/earthRadius) +
+		math.Cos(startRad.Lat)*math.Sin(distance/earthRadius)*math.Cos(bearing))
+
+	// Calculate new longitude
+	newLon := startRad.Lng + math.Atan2(math.Sin(bearing)*math.Sin(distance/earthRadius)*math.Cos(startRad.Lat),
+		math.Cos(distance/earthRadius)-math.Sin(startRad.Lat)*math.Sin(newLat))
+
+	// Return latlng as degrees
+	return LatLng{
+		Lat: newLat * 180 / math.Pi,
+		Lng: newLon * 180 / math.Pi,
+	}
+}
 
 // Iterates over the waypoints and returns the location when the distance (total distance travelled by user) is reached
 func (w Waypoints) GetLocation(distance float64) (Location, error) {
@@ -60,15 +91,17 @@ func (w Waypoints) GetLocation(distance float64) (Location, error) {
 	// Iterate over each leg of the route and calculate the distance sum
 	for _, waypoint := range w[1:] {
 
-		distanceSum += previous.DistanceTo(waypoint)
+		diff := previous.DistanceTo(waypoint)
+		distanceSum += diff
 
 		// Check if the total distance has been reached
 		if distanceSum >= distance {
-			log.Println("Returing as distance sum is greater than distance")
-			return LocationFromLatLng(previous.LatLng)
+			// Get new location by getting the distance between the previous and next waypoint
+			return LocationFromLatLng(getNewCoordinates(previous.LatLng, waypoint.LatLng, distance-(distanceSum-diff)))
 		}
+
+		previous = waypoint
 	}
 
-	log.Println("Returning end")
-	return LocationFromLatLng(w.First().LatLng)
+	return LocationFromLatLng(previous.LatLng)
 }

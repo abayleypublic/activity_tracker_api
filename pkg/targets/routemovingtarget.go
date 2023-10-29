@@ -3,7 +3,6 @@ package targets
 import (
 	"context"
 	"errors"
-	"log"
 	"math"
 
 	"github.com/AustinBayley/activity_tracker_api/pkg/activities"
@@ -39,8 +38,9 @@ func (r *Route) MarshalBSON() ([]byte, error) {
 }
 
 type RouteMovingTargetProgress struct {
-	Percent  float64            `json:"percent" bson:"percent"`
-	Location locations.Location `json:"location" bson:"location"`
+	Percent         float64            `json:"percent" bson:"percent"`
+	DistanceCovered float64            `json:"distanceCovered" bson:"distanceCovered"`
+	Location        locations.Location `json:"location" bson:"location"`
 }
 
 func (r RouteMovingTargetProgress) Percentage() float64 {
@@ -88,22 +88,18 @@ func (t *RouteMovingTarget) Evaluate(ctx context.Context, acts []activities.Acti
 
 	loc, err := t.Route.GetLocation(distance)
 	if err != nil {
-		log.Println(err)
 		return nil, ErrFindingLocation
 	}
 
 	var percent float64 = 0
 	if distance > 0 && t.TotalDistance > 0 {
-		log.Println("Here")
 		percent = math.Min((distance/t.TotalDistance)*100, 100)
 	}
 
-	log.Println(percent)
-	log.Println("This bit")
-
 	return RouteMovingTargetProgress{
-		Percent:  percent,
-		Location: loc,
+		Percent:         percent,
+		DistanceCovered: distance,
+		Location:        loc,
 	}, nil
 
 }

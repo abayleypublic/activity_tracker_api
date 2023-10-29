@@ -163,7 +163,6 @@ func (a *API) Start() {
 	a.GET("/users/:userID", serve(a.GetUser, []typhon.Filter{a.HasAuthFilter}))
 	a.PATCH("/users/:userID", serve(a.PatchUser, []typhon.Filter{a.ValidUserFilter}))
 	a.DELETE("/users/:userID", serve(a.DeleteUser, []typhon.Filter{a.ValidUserFilter}))
-	// Because this method will only run once, a valid user filter is not required as it will not change other than via patch or delete requests
 	a.PUT("/users/:userID", serve(a.PutUser, []typhon.Filter{a.ValidUserFilter}))
 
 	// User activities routes

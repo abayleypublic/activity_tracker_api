@@ -36,10 +36,10 @@ func (s *MongoDBService[T]) FindResource(ctx context.Context, resource interface
 	return nil
 }
 
-// Performant checks if a user has permission to perform an operation on a resource.
+// Permitted checks if a user has permission to perform an operation on a resource.
 // Electing to go this route instead of using queries to enforce permissions
 // because it provides easier distinction of whether not found or not authorised.
-// It will be a bit slower so may have to revisit this.
+// It will be a bit slower due to multiple db reads so may have to revisit this.
 func (s *MongoDBService[T]) Permitted(ctx context.Context, criteria interface{}, op Operation) (bool, error) {
 
 	var res T
@@ -84,11 +84,9 @@ func (s *MongoDBService[T]) ReadRaw(ctx context.Context, resourceID ID, resource
 
 	ok, err := s.Permitted(ctx, bson.D{{Key: s.IDKey, Value: resourceID}}, READ)
 	if err != nil {
-		log.Println(err)
 		return err
 	}
 	if !ok {
-		log.Println("Forbidden")
 		return ErrForbidden
 	}
 
