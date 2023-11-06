@@ -97,10 +97,14 @@ func (s *MongoDBService[T]) FindAll(ctx context.Context, resources interface{}, 
 
 	cur, err := s.Find(ctx, criteria)
 	if err != nil {
+		log.Println("Find")
+		log.Println(err)
 		return ErrUnknownError
 	}
 
 	if err = cur.All(ctx, resources); err != nil {
+		log.Println("All")
+		log.Println(err)
 		return ErrUnknownError
 	}
 

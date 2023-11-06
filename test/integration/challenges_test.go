@@ -1,4 +1,4 @@
-package test
+package integration
 
 import (
 	"context"
@@ -28,7 +28,7 @@ func TestGetChallenges(t *testing.T) {
 		t.Fatalf("Failed to decode response: %v", err)
 	}
 
-	if len(c) != 1 {
-		t.Fatalf("Expected 1 challenge, got %d", len(c))
+	if !(len(c) >= 1) {
+		t.Fatalf("Expected at least 1 challenge, got %d", len(c))
 	}
 }

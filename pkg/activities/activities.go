@@ -40,7 +40,7 @@ var (
 type Activity struct {
 	ID          service.ID    `json:"id" bson:"_id"`
 	UserID      service.ID    `json:"userID" bson:"userID"`
-	CreatedDate *service.Time `json:"createdDate" bson:"createdDate"`
+	CreatedDate *service.Time `json:"createdDate,omitempty" bson:"createdDate"`
 	Type        ActivityType  `json:"type" bson:"type"`
 	Value       float64       `json:"value" bson:"value"`
 	Start       time.Time     `json:"start" bson:"start"`

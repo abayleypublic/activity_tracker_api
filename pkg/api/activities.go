@@ -51,7 +51,7 @@ func (a *API) PostUserActivity(req typhon.Request) Response {
 		return NewResponse(InternalServer(err.Error(), err))
 	}
 
-	return NewResponse(res)
+	return NewResponseWithCode(res, http.StatusCreated)
 }
 
 func (a *API) PatchUserActivity(req typhon.Request) Response {
