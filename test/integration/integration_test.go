@@ -11,6 +11,7 @@ import (
 	"github.com/AustinBayley/activity_tracker_api/pkg/activities"
 	"github.com/AustinBayley/activity_tracker_api/pkg/api"
 	"github.com/AustinBayley/activity_tracker_api/pkg/challenges"
+	"github.com/AustinBayley/activity_tracker_api/pkg/service"
 	"github.com/AustinBayley/activity_tracker_api/pkg/targets"
 	"github.com/AustinBayley/activity_tracker_api/pkg/targets/locations"
 	"github.com/AustinBayley/activity_tracker_api/pkg/users"
@@ -22,15 +23,24 @@ var (
 	baseURI string
 	dbName  string = "activity-tracker"
 	admin   bool
+	user    service.ID = service.UnknownUser
 	db      *mongo.Database
 	as      *activities.Activities
 	us      *users.Users
 	cs      *challenges.Challenges
 )
 
+func hasUser() bool {
+	return user != service.UnknownUser
+}
+
 // Build out the database with dummy data
 func init() {
 	baseURI = os.Getenv("API_URI")
+	if u := os.Getenv("User"); u != "" {
+		user = service.ID(u)
+	}
+
 	mongoURI := os.Getenv("MONGODB_URI")
 
 	adm, err := strconv.ParseBool(os.Getenv("ADMIN"))
@@ -96,7 +106,7 @@ func setup() error {
 					Public:     false,
 					InviteOnly: false,
 				},
-				CreatedBy: "test",
+				CreatedBy: "test3",
 			},
 			Target: &targets.RouteMovingTarget{
 				BaseTarget: targets.BaseTarget{

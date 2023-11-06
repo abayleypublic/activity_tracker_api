@@ -1,7 +1,6 @@
 package api
 
 import (
-	"log"
 	"net/http"
 
 	"github.com/AustinBayley/activity_tracker_api/pkg/service"
@@ -45,7 +44,6 @@ func (a *API) DeleteAdmin(req typhon.Request) Response {
 
 func (a *API) PutAdmin(req typhon.Request) Response {
 
-	log.Println("Putting admin")
 	id, ok := a.Params(req)["userID"]
 	if !ok {
 		return NewResponse(BadRequest("id not supplied", nil))

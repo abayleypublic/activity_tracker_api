@@ -6,3 +6,4 @@ main
 .DS_Store
 report.json
 coverage.out
+test_report.html

@@ -59,7 +59,6 @@ func (s *MongoDBService[T]) Permitted(ctx context.Context, criteria interface{},
 		return res.CanBeUpdatedBy(rc.UserID, rc.Admin), nil
 	case DELETE:
 		return res.CanBeDeletedBy(rc.UserID, rc.Admin), nil
-
 	}
 
 	return false, nil

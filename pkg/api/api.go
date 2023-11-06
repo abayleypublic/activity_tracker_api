@@ -155,13 +155,13 @@ func (a *API) Start() {
 	a.POST("/challenges", serve(a.PostChallenge, []typhon.Filter{a.HasAuthFilter}))
 	a.GET("/challenges/:id", serve(a.GetChallenge, []typhon.Filter{}))
 	a.DELETE("/challenges/:id", serve(a.DeleteChallenge, []typhon.Filter{a.HasAuthFilter}))
-	a.PATCH("/challenges/:id", serve(a.PatchChallenge, []typhon.Filter{a.HasAuthFilter}))
+	// a.PATCH("/challenges/:id", serve(a.PatchChallenge, []typhon.Filter{a.HasAuthFilter}))
 	a.GET("/challenges/:id/members/:userID/progress", serve(a.GetProgress, []typhon.Filter{}))
 
 	// User routes
 	a.GET("/users", serve(a.GetUsers, []typhon.Filter{a.AdminAuthFilter}))
 	a.GET("/users/:userID", serve(a.GetUser, []typhon.Filter{a.HasAuthFilter}))
-	a.PATCH("/users/:userID", serve(a.PatchUser, []typhon.Filter{a.ValidUserFilter}))
+	// a.PATCH("/users/:userID", serve(a.PatchUser, []typhon.Filter{a.ValidUserFilter}))
 	a.DELETE("/users/:userID", serve(a.DeleteUser, []typhon.Filter{a.ValidUserFilter}))
 	a.PUT("/users/:userID", serve(a.PutUser, []typhon.Filter{a.ValidUserFilter}))
 
@@ -169,7 +169,7 @@ func (a *API) Start() {
 	a.GET("/users/:userID/activities", serve(a.GetUserActivities, []typhon.Filter{}))
 	a.POST("/users/:userID/activities", serve(a.PostUserActivity, []typhon.Filter{a.ValidUserFilter}))
 	a.GET("/users/:userID/activities/:activityID", serve(a.GetUserActivity, []typhon.Filter{}))
-	a.PATCH("/users/:userID/activities/:activityID", serve(a.PatchUserActivity, []typhon.Filter{a.ValidUserFilter}))
+	// a.PATCH("/users/:userID/activities/:activityID", serve(a.PatchUserActivity, []typhon.Filter{a.ValidUserFilter}))
 	a.DELETE("/users/:userID/activities/:activityID", serve(a.DeleteUserActivity, []typhon.Filter{a.ValidUserFilter}))
 
 	// User challenge routes
