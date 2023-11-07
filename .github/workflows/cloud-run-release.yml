@@ -33,7 +33,7 @@ jobs:
         with:
           context: .
           push: true
-          tags: activities/api:${{ github.event.release.tag_name }}
+          tags: europe-west1-docker.pkg.dev/activities/api:${{ github.event.release.tag_name }}
 
       # - id: "deploy"
       #   name: Deploy to Cloud Run
