@@ -119,7 +119,7 @@ func main() {
 	user := os.Getenv("USER")
 	admin, err := strconv.ParseBool(os.Getenv("ADMIN"))
 	if err != nil {
-		log.Fatalln(err)
+		admin = false
 	}
 
 	cfg := api.NewConfig(env, mongoURI, dbName, port, projectID, mapsCreds.key, service.RequestContext{
