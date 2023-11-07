@@ -33,12 +33,12 @@ jobs:
         with:
           context: .
           push: true
-          tags: europe-west1-docker.pkg.dev/activities/api:${{ github.event.release.tag_name }}
+          tags: europe-west1-docker.pkg.dev/activity-tracker-bfaaa/activities/api:${{ github.event.release.tag_name }}
 
       # - id: "deploy"
       #   name: Deploy to Cloud Run
       #   uses: "google-github-actions/deploy-cloudrun@v1"
       #   with:
       #     service: "api"
-      #     image: "europe-west1-docker.pkg.dev/activities/api:${{ github.event.release.tag_name }}"
+      #     image: europe-west1-docker.pkg.dev/activity-tracker-bfaaa/activities/api:${{ github.event.release.tag_name }}
       #     region: "europe-west1"
