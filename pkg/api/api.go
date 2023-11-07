@@ -146,37 +146,37 @@ func (a *API) Start() {
 	})
 
 	// Admin Routes
-	a.GET("/admin/:userID", serve(a.GetAdmin, []typhon.Filter{a.AdminAuthFilter}))
-	a.PUT("/admin/:userID", serve(a.PutAdmin, []typhon.Filter{a.AdminAuthFilter}))
-	a.DELETE("/admin/:userID", serve(a.DeleteAdmin, []typhon.Filter{a.AdminAuthFilter}))
+	a.GET("/api/admin/:userID", serve(a.GetAdmin, []typhon.Filter{a.AdminAuthFilter}))
+	a.PUT("/api/admin/:userID", serve(a.PutAdmin, []typhon.Filter{a.AdminAuthFilter}))
+	a.DELETE("/api/admin/:userID", serve(a.DeleteAdmin, []typhon.Filter{a.AdminAuthFilter}))
 
 	// Challenges Routes
-	a.GET("/challenges", serve(a.GetChallenges, []typhon.Filter{}))
-	a.POST("/challenges", serve(a.PostChallenge, []typhon.Filter{a.HasAuthFilter}))
-	a.GET("/challenges/:id", serve(a.GetChallenge, []typhon.Filter{}))
-	a.DELETE("/challenges/:id", serve(a.DeleteChallenge, []typhon.Filter{a.HasAuthFilter}))
-	// a.PATCH("/challenges/:id", serve(a.PatchChallenge, []typhon.Filter{a.HasAuthFilter}))
-	a.GET("/challenges/:id/members/:userID/progress", serve(a.GetProgress, []typhon.Filter{}))
+	a.GET("/api/challenges", serve(a.GetChallenges, []typhon.Filter{}))
+	a.POST("/api/challenges", serve(a.PostChallenge, []typhon.Filter{a.HasAuthFilter}))
+	a.GET("/api/challenges/:id", serve(a.GetChallenge, []typhon.Filter{}))
+	a.DELETE("/api/challenges/:id", serve(a.DeleteChallenge, []typhon.Filter{a.HasAuthFilter}))
+	// a.PATCH("/api/challenges/:id", serve(a.PatchChallenge, []typhon.Filter{a.HasAuthFilter}))
+	a.GET("/api/challenges/:id/members/:userID/progress", serve(a.GetProgress, []typhon.Filter{}))
 
 	// User routes
-	a.GET("/users", serve(a.GetUsers, []typhon.Filter{a.AdminAuthFilter}))
-	a.GET("/users/:userID", serve(a.GetUser, []typhon.Filter{a.HasAuthFilter}))
-	// a.PATCH("/users/:userID", serve(a.PatchUser, []typhon.Filter{a.ValidUserFilter}))
-	a.DELETE("/users/:userID", serve(a.DeleteUser, []typhon.Filter{a.ValidUserFilter}))
-	a.PUT("/users/:userID", serve(a.PutUser, []typhon.Filter{a.ValidUserFilter}))
+	a.GET("/api/users", serve(a.GetUsers, []typhon.Filter{a.AdminAuthFilter}))
+	a.GET("/api/users/:userID", serve(a.GetUser, []typhon.Filter{a.HasAuthFilter}))
+	// a.PATCH("/api/users/:userID", serve(a.PatchUser, []typhon.Filter{a.ValidUserFilter}))
+	a.DELETE("/api/users/:userID", serve(a.DeleteUser, []typhon.Filter{a.ValidUserFilter}))
+	a.PUT("/api/users/:userID", serve(a.PutUser, []typhon.Filter{a.ValidUserFilter}))
 
 	// User activities routes
-	a.GET("/users/:userID/activities", serve(a.GetUserActivities, []typhon.Filter{}))
-	a.POST("/users/:userID/activities", serve(a.PostUserActivity, []typhon.Filter{a.ValidUserFilter}))
-	a.GET("/users/:userID/activities/:activityID", serve(a.GetUserActivity, []typhon.Filter{}))
-	// a.PATCH("/users/:userID/activities/:activityID", serve(a.PatchUserActivity, []typhon.Filter{a.ValidUserFilter}))
-	a.DELETE("/users/:userID/activities/:activityID", serve(a.DeleteUserActivity, []typhon.Filter{a.ValidUserFilter}))
+	a.GET("/api/users/:userID/activities", serve(a.GetUserActivities, []typhon.Filter{}))
+	a.POST("/api/users/:userID/activities", serve(a.PostUserActivity, []typhon.Filter{a.ValidUserFilter}))
+	a.GET("/api/users/:userID/activities/:activityID", serve(a.GetUserActivity, []typhon.Filter{}))
+	// a.PATCH("/api/users/:userID/activities/:activityID", serve(a.PatchUserActivity, []typhon.Filter{a.ValidUserFilter}))
+	a.DELETE("/api/users/:userID/activities/:activityID", serve(a.DeleteUserActivity, []typhon.Filter{a.ValidUserFilter}))
 
 	// User challenge routes
-	a.PUT("/users/:userID/challenges/:id", serve(a.JoinChallenge, []typhon.Filter{a.ValidUserFilter}))
-	a.DELETE("/users/:userID/challenges/:id", serve(a.LeaveChallenge, []typhon.Filter{a.ValidUserFilter}))
+	a.PUT("/api/users/:userID/challenges/:id", serve(a.JoinChallenge, []typhon.Filter{a.ValidUserFilter}))
+	a.DELETE("/api/users/:userID/challenges/:id", serve(a.LeaveChallenge, []typhon.Filter{a.ValidUserFilter}))
 
-	a.GET("/profile", serve(a.GetProfile, []typhon.Filter{a.HasAuthFilter}))
+	a.GET("/api/profile", serve(a.GetProfile, []typhon.Filter{a.HasAuthFilter}))
 
 	// Make sure body filtering and logging go last!
 	svc := a.Serve().
