@@ -138,9 +138,9 @@ func (a *API) Start() {
 			return req.ResponseWithCode(err, http.StatusServiceUnavailable)
 		}
 
-		if i := locations.Initialised(); !i {
-			return req.ResponseWithCode(nil, http.StatusServiceUnavailable)
-		}
+		// if i := locations.Initialised(); !i {
+		// 	return req.ResponseWithCode(nil, http.StatusServiceUnavailable)
+		// }
 
 		return req.ResponseWithCode(nil, http.StatusNoContent)
 	})
