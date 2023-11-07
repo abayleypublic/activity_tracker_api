@@ -99,6 +99,7 @@ var (
 	ErrResourceNotFound      = errors.New("resource not found")
 	ErrResourceAlreadyExists = errors.New("resource already exists")
 	ErrUnknownError          = errors.New("unknown error")
+	ErrExternalService       = errors.New("error in external service")
 )
 
 const (

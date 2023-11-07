@@ -200,7 +200,7 @@ func (a *API) GetProfile(req typhon.Request) Response {
 
 	u, err := service.GetActorContext(req.Context)
 	if err != nil {
-		return NewResponse(Unauthorized("Could not determine user", err))
+		return NewResponse(Unauthorized("could not determine user", err))
 	}
 
 	user := users.User{}

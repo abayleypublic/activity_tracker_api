@@ -1,0 +1,44 @@
+name: Deploy to Cloud Run on release
+"on":
+  release:
+    types: [prereleased]
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: "read"
+      id-token: "write"
+
+    steps:
+      - uses: "actions/checkout@v3"
+
+      - id: "auth"
+        name: Authenticate to Google Cloud
+        uses: "google-github-actions/auth@v1"
+        with:
+          token_format: "access_token"
+          credentials_json: "${{ secrets.GOOGLE_CREDENTIALS }}"
+
+      - id: "login"
+        name: Login to Docker
+        uses: "docker/login-action@v3"
+        with:
+          registry: "europe-west1-docker.pkg.dev"
+          username: "oauth2accesstoken"
+          password: "${{ steps.auth.outputs.access_token }}"
+
+      - id: "build-push"
+        name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: activities/api:${{ github.event.release.tag_name }}
+
+      # - id: "deploy"
+      #   name: Deploy to Cloud Run
+      #   uses: "google-github-actions/deploy-cloudrun@v1"
+      #   with:
+      #     service: "api"
+      #     image: "europe-west1-docker.pkg.dev/activities/api:${{ github.event.release.tag_name }}"
+      #     region: "europe-west1"

@@ -3,6 +3,8 @@ package admin
 import (
 	"context"
 
+	"github.com/monzo/slog"
+
 	"github.com/AustinBayley/activity_tracker_api/pkg/auth"
 	"github.com/AustinBayley/activity_tracker_api/pkg/service"
 )
@@ -27,7 +29,12 @@ func (a *Admin) GetAdmin(ctx context.Context, id service.ID) (bool, error) {
 
 	user, err := a.auth.GetUser(ctx, string(id))
 	if err != nil {
-		return false, err
+		slog.Error(ctx, "error getting admin: %v", err)
+		return false, service.ErrUnknownError
+	}
+
+	if user == nil {
+		return false, service.ErrResourceNotFound
 	}
 
 	if admin, ok := user.CustomClaims["admin"]; ok {
@@ -45,7 +52,8 @@ func (a *Admin) SetAdmin(ctx context.Context, id service.ID, admin bool) error {
 
 	claims := map[string]interface{}{"admin": admin}
 	if err := a.auth.SetCustomUserClaims(ctx, string(id), claims); err != nil {
-		return err
+		slog.Error(ctx, "error setting admin: %v", err)
+		return service.ErrUnknownError
 	}
 
 	return nil

@@ -183,12 +183,10 @@ func (a *API) Start() {
 		Filter(typhon.H2cFilter).
 		Filter(typhon.ErrorFilter).
 		Filter(a.ActorFilter).
-		// Filter(a.BodyFilter).
 		Filter(Logging)
 
 	defer func() {
 		log.Printf("Shutting down database connection")
-
 		if err := a.db.Client().Disconnect(context.Background()); err != nil {
 			log.Fatalln(err)
 		}

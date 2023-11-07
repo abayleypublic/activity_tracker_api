@@ -85,7 +85,7 @@ func (a *API) PatchChallenge(req typhon.Request) Response {
 	// Decode requested patch
 	patch, err := jsonpatch.DecodePatch(bb)
 	if err != nil {
-		return NewResponse(UnprocessableEntity("could not decide request", err))
+		return NewResponse(UnprocessableEntity("could not decode request", err))
 	}
 
 	// Apply patch to stored challenge to get modified document

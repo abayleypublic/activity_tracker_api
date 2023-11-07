@@ -1,6 +1,7 @@
 version: "3"
 services:
   api:
+    container_name: activity_api
     build: 
       context: ./
       dockerfile: ./docker-local.dockerfile
@@ -12,6 +13,7 @@ services:
       - ./:/app
       - $HOME/.config/gcloud/:/config:ro
   mongo:
+    container_name: activity_db
     image: mongo
     ports:
       - "27017:27017"
