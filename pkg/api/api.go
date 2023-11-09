@@ -130,6 +130,11 @@ func NewAPI(cfg Config) (*API, error) {
 
 func (a *API) Start() {
 
+	// Default not found response
+	a.Register("*", "*", func(req typhon.Request) typhon.Response {
+		return req.ResponseWithCode(nil, http.StatusNotFound)
+	})
+
 	// Get health of service
 	a.GET("/health", func(req typhon.Request) typhon.Response {
 		// Test Mongodb connection

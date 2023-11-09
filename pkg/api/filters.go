@@ -28,6 +28,10 @@ func ForbiddenResponse(req typhon.Request, cause string, err error) typhon.Respo
 
 func Logging(req typhon.Request, svc typhon.Service) typhon.Response {
 
+	if req.URL.Path == "/health" {
+		return svc(req)
+	}
+
 	res := svc(req)
 	user, err := service.GetActorContext(res.Request.Context)
 	if err != nil {
