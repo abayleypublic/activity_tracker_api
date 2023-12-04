@@ -11,7 +11,6 @@ require (
 	github.com/monzo/typhon v1.1.7
 	github.com/uber/h3-go/v4 v4.1.0
 	go.mongodb.org/mongo-driver v1.11.4
-	googlemaps.github.io/maps v1.5.0
 )
 
 require (

@@ -15,11 +15,9 @@ import (
 	"github.com/AustinBayley/activity_tracker_api/pkg/auth"
 	"github.com/AustinBayley/activity_tracker_api/pkg/challenges"
 	"github.com/AustinBayley/activity_tracker_api/pkg/service"
-	"github.com/AustinBayley/activity_tracker_api/pkg/targets/locations"
 	"github.com/AustinBayley/activity_tracker_api/pkg/users"
 	"github.com/monzo/typhon"
 	"go.mongodb.org/mongo-driver/mongo"
-	"googlemaps.github.io/maps"
 )
 
 type Environment string
@@ -108,12 +106,6 @@ func NewAPI(cfg Config) (*API, error) {
 		return nil, err
 	}
 	admin := admin.NewAdmin(auth)
-
-	c, err := maps.NewClient(maps.WithAPIKey(cfg.MapsAPIKey))
-	if err != nil {
-		return nil, err
-	}
-	_ = locations.NewLocations(c)
 
 	return &API{
 		typhon.Router{},

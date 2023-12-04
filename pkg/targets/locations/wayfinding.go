@@ -1,11 +1,9 @@
 package locations
 
 import (
-	"context"
 	"math"
 
 	"github.com/uber/h3-go/v4"
-	"googlemaps.github.io/maps"
 )
 
 type LatLng struct {
@@ -45,15 +43,9 @@ type Location struct {
 }
 
 func LocationFromLatLng(latlng LatLng) (Location, error) {
-
-	name, err := GetLocationName(context.Background(), maps.LatLng(latlng))
-	if err != nil {
-		return Location{}, err
-	}
-
 	return Location{
 		LatLng: latlng,
-		Name:   name,
+		Name:   "unknown",
 	}, nil
 }
 
