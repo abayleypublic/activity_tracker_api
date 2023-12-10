@@ -66,6 +66,7 @@ func (t *RouteMovingTarget) MarshalBSON() ([]byte, error) {
 	var distanceSum float64 = 0
 	for _, waypoint := range t.Route.Waypoints[1:] {
 		distanceSum += previous.DistanceTo(waypoint)
+		previous = waypoint
 	}
 	t.TotalDistance = distanceSum
 
