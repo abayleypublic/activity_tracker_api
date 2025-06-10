@@ -20,7 +20,7 @@ jobs:
         uses: "google-github-actions/auth@v2"
         with:
           token_format: "access_token"
-          workload_identity_provider: "projects/745294108339/locations/global/workloadIdentityPools/github/providers/github"
+          workload_identity_provider: "projects/745294108339/locations/global/workloadIdentityPools/github/providers/actions"
           service_account: "github-actions@portfolio-459420.iam.gserviceaccount.com"
 
       - id: "login"
