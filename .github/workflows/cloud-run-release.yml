@@ -1,7 +1,8 @@
-name: Deploy to Cloud Run on release
-"on":
+name: Build and Deploy on Release
+on:
   release:
     types: [released]
+
 jobs:
   build_and_deploy:
     runs-on: ubuntu-latest
@@ -10,35 +11,30 @@ jobs:
       id-token: "write"
 
     steps:
-      - uses: "actions/checkout@v3"
+      - id: "checkout"
+        name: Checkout
+        uses: "actions/checkout@v4"
 
       - id: "auth"
-        name: Authenticate to Google Cloud
-        uses: "google-github-actions/auth@v1"
+        name: "Authenticate to Google Cloud"
+        uses: "google-github-actions/auth@v2"
         with:
           token_format: "access_token"
-          credentials_json: "${{ secrets.GOOGLE_CREDENTIALS }}"
+          workload_identity_provider: "projects/745294108339/locations/global/workloadIdentityPools/github/providers/github"
+          service_account: "github-actions@portfolio-459420.iam.gserviceaccount.com"
 
       - id: "login"
         name: Login to Docker
         uses: "docker/login-action@v3"
         with:
-          registry: "europe-west1-docker.pkg.dev"
+          registry: "europe-west2-docker.pkg.dev"
           username: "oauth2accesstoken"
           password: "${{ steps.auth.outputs.access_token }}"
 
       - id: "build-push"
         name: Build and push
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           push: true
-          tags: europe-west1-docker.pkg.dev/activity-tracker-bfaaa/activities/api:${{ github.event.release.tag_name }},europe-west1-docker.pkg.dev/activity-tracker-bfaaa/activities/api:latest
-
-      - id: "deploy"
-        name: Deploy to Cloud Run
-        uses: "google-github-actions/deploy-cloudrun@v1"
-        with:
-          service: "api"
-          image: europe-west1-docker.pkg.dev/activity-tracker-bfaaa/activities/api:latest
-          region: "europe-west1"
+          tags: europe-west2-docker.pkg.dev/portfolio-459420/docker-repository/${{ github.event.repository.name }}:${{ github.event.release.tag_name }}
