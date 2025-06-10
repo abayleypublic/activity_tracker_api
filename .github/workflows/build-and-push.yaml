@@ -1,4 +1,4 @@
-name: Build and Deploy on Release
+name: Build and Push on Release
 on:
   release:
     types: [released]
