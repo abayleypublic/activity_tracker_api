@@ -14,6 +14,9 @@ jobs:
       - id: "checkout"
         name: Checkout
         uses: "actions/checkout@v4"
+        with:
+          fetch-depth: 0
+          ref: "${{ github.event.release.tag_name }}"
 
       - id: "auth"
         name: "Authenticate to Google Cloud"
@@ -45,3 +48,4 @@ jobs:
           push: true
           tags: europe-west2-docker.pkg.dev/portfolio-459420/docker-repository/${{ github.event.repository.name }}:${{ github.event.release.tag_name }}
           platforms: linux/amd64,linux/arm64
+          # platforms: linux/amd64
