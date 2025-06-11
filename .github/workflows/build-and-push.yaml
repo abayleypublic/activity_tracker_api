@@ -31,6 +31,12 @@ jobs:
           username: "oauth2accesstoken"
           password: "${{ steps.auth.outputs.access_token }}"
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - id: "build-push"
         name: Build and push
         uses: docker/build-push-action@v6
@@ -38,3 +44,4 @@ jobs:
           context: .
           push: true
           tags: europe-west2-docker.pkg.dev/portfolio-459420/docker-repository/${{ github.event.repository.name }}:${{ github.event.release.tag_name }}
+          platforms: linux/amd64,linux/arm64
