@@ -1,0 +1,59 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: roam-sa
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  labels:
+    app: api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api
+  template:
+    metadata:
+      labels:
+        app: api
+    spec:
+      serviceAccountName: roam-sa
+      containers:
+        - name: api
+          image: europe-west2-docker.pkg.dev/portfolio-459420/docker-repository/activity_tracker_api
+          ports:
+            - containerPort: 80
+          env:
+            - name: MONGODB_URI
+              value: >-
+                mongodb+srv://portfolio.gupwyyx.mongodb.net?
+                authMechanism=MONGODB-OIDC&
+                authMechanismProperties=ENVIRONMENT:k8s&
+                retryWrites=true&
+                w=majority
+            - name: ENVIRONMENT
+              value: prod
+            - name: PORT
+              value: 80
+          volumeMounts:
+            - name: ksa-token
+              mountPath: /var/run/secrets/tokens
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 80
+            initialDelaySeconds: 3
+            periodSeconds: 3
+      imagePullSecrets:
+        - name: gcp-pull-secret
+      volumes:
+        - name: ksa-token
+          projected:
+            sources:
+              - serviceAccountToken:
+                  path: id-token
+                  audience: mongodb
+                  expirationSeconds: 3600
