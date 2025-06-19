@@ -1,4 +1,4 @@
-FROM golang:1.20.3-alpine
+FROM golang:1.23.10-alpine3.22
 
 RUN apk update && apk upgrade && \
     apk add --no-cache musl-dev gcc

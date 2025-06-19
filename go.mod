@@ -2,6 +2,8 @@ module github.com/AustinBayley/activity_tracker_api
 
 go 1.23.0
 
+toolchain go1.24.3
+
 require (
 	cloud.google.com/go/secretmanager v1.11.1
 	firebase.google.com/go v3.13.0+incompatible
