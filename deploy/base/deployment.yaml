@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: api
-          image: europe-west2-docker.pkg.dev/portfolio-459420/docker-repository/activity_tracker_api
+          image: europe-west2-docker.pkg.dev/portfolio-463406/docker-repository/activity_tracker_api
           ports:
             - containerPort: 80
       imagePullSecrets:

@@ -24,7 +24,7 @@ jobs:
         with:
           token_format: "access_token"
           workload_identity_provider: "projects/745294108339/locations/global/workloadIdentityPools/github/providers/actions"
-          service_account: "github-actions@portfolio-459420.iam.gserviceaccount.com"
+          service_account: "github-actions@portfolio-463406.iam.gserviceaccount.com"
 
       - id: "login"
         name: Login to Docker
@@ -46,6 +46,6 @@ jobs:
         with:
           context: .
           push: true
-          tags: europe-west2-docker.pkg.dev/portfolio-459420/docker-repository/${{ github.event.repository.name }}:${{ github.event.release.tag_name }}
+          tags: europe-west2-docker.pkg.dev/portfolio-463406/docker-repository/${{ github.event.repository.name }}:${{ github.event.release.tag_name }}
           platforms: linux/amd64,linux/arm64
           # platforms: linux/amd64
