@@ -1,7 +1,7 @@
 variable "gcp_project_id" {
   description = "The ID of the GCP project in which the resources will be created."
   type        = string
-  default     = "portfolio-459420"
+  default     = "portfolio-463406"
 }
 
 variable "mongodb_atlas_project_id" {

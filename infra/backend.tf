@@ -1,5 +1,5 @@
 terraform {
     backend "gcs" {
-        bucket = "339a36b04355c3bc-roam-api-terraform-state"
+        bucket = "c9643e1e8ce2a209-roam-api-terraform-state"
     }
 }
