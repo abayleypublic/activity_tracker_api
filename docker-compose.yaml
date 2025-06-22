@@ -3,8 +3,7 @@ services:
   api:
     container_name: activity_api
     build: 
-      context: ./
-      dockerfile: ./docker-local.dockerfile
+      context: .
     env_file:
       - .env
     ports:
