@@ -1,0 +1,50 @@
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: SecurityPolicy
+metadata:
+  name: jwt-auth0
+  namespace: roam
+spec:
+  targetRef:
+    group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    name: roam-protected
+  jwt:
+    optional: false
+    providers:
+      - name: auth0
+        issuer: https://acme.eu.auth0.com/
+        audiences:
+          - "https://roam.austinbayley.co.uk"
+        remoteJWKS:
+          uri: https://acme.eu.auth0.com/.well-known/jwks.json
+---
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: SecurityPolicy
+metadata:
+  name: admin-claims
+  namespace: roam
+spec:
+  targetRef:
+    group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    name: roam-admin
+  jwt:
+    optional: false
+    providers:
+      - name: auth0
+        issuer: https://acme.eu.auth0.com/
+        audiences:
+          - "https://roam.austinbayley.co.uk"
+        remoteJWKS:
+          uri: https://acme.eu.auth0.com/.well-known/jwks.json
+  authorization:
+    rules:
+      - name: allow-admins
+        action: Allow
+        principal:
+          jwt:
+            provider: auth0
+            claims:
+              - name: permissions
+                valueType: StringArray
+                values: ["roam_admin"]
