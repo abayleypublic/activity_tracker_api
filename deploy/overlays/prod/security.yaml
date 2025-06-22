@@ -2,7 +2,6 @@ apiVersion: gateway.envoyproxy.io/v1alpha1
 kind: SecurityPolicy
 metadata:
   name: jwt-auth0
-  namespace: roam
 spec:
   targetRef:
     group: gateway.networking.k8s.io
@@ -22,7 +21,6 @@ apiVersion: gateway.envoyproxy.io/v1alpha1
 kind: SecurityPolicy
 metadata:
   name: admin-claims
-  namespace: roam
 spec:
   targetRef:
     group: gateway.networking.k8s.io
