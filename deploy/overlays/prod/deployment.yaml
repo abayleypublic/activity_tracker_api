@@ -37,6 +37,11 @@ spec:
               value: prod
             - name: PORT
               value: "80"
+            - name: MAPS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: maps-key
+                  key: API_KEY
           volumeMounts:
             - name: ksa-token
               mountPath: /var/run/secrets/tokens
@@ -57,3 +62,19 @@ spec:
                   path: id-token
                   audience: mongodb
                   expirationSeconds: 3600
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: maps-key
+spec:
+  refreshInterval: "1h"
+  secretStoreRef:
+    name: oci-secret-store
+    kind: ClusterSecretStore
+  target:
+    name: maps-key
+  data:
+    - secretKey: API_KEY
+      remoteRef:
+        key: prod_roam_maps_api_key
