@@ -5,7 +5,6 @@ go 1.23.0
 toolchain go1.24.3
 
 require (
-	cloud.google.com/go/secretmanager v1.11.1
 	firebase.google.com/go v3.13.0+incompatible
 	github.com/evanphx/json-patch v0.5.2
 	github.com/evanphx/json-patch/v5 v5.6.0
