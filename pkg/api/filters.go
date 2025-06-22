@@ -3,7 +3,6 @@ package api
 import (
 	"context"
 	"encoding/json"
-	"net/http"
 
 	"github.com/AustinBayley/activity_tracker_api/pkg/service"
 	"github.com/monzo/slog"
@@ -56,38 +55,9 @@ func (a *API) ActorFilter(req typhon.Request, svc typhon.Service) typhon.Respons
 		return svc(req)
 	}
 
-	// Get token from headers
-	t, err := a.auth.GetAuthToken(req)
-	if err != nil {
-		// If no token has been supplied, proceed with unknown user permissions
-		req.Context = context.WithValue(req.Context, service.UserCtxKey, service.RequestContext{
-			UserID: service.UnknownUser,
-			Admin:  false,
-		})
-		return svc(req)
-	}
-
-	// If token was supplied, get user details
-	token, err := a.auth.GetToken(req.Context, t)
-	if err != nil {
-		return ForbiddenResponse(req, "invalid token", err)
-	}
-	tokenSubject := a.auth.GetUserID(req.Context, *token)
-
-	// Check token for admin claim
-	admin := a.auth.IsAdmin(*token)
-
-	// If admin claim or making anything other than a GET request, always check token is valid & not revoked
-	if admin || req.Method != http.MethodGet || req.URL.Path == "/profile" {
-		_, err = a.auth.GetValidToken(req.Context, t)
-		if err != nil {
-			return ForbiddenResponse(req, "invalid token", err)
-		}
-	}
-
 	req.Context = context.WithValue(req.Context, service.UserCtxKey, service.RequestContext{
-		UserID: tokenSubject,
-		Admin:  admin,
+		UserID: "",
+		Admin:  false,
 	})
 
 	return svc(req)
