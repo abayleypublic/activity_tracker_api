@@ -28,7 +28,7 @@ spec:
           env:
             - name: MONGODB_URI
               value: >-
-                mongodb+srv://portfolio.gupwyyx.mongodb.net?
+                mongodb+srv://portfolio.gupwyyx.mongodb.net/?
                 authMechanism=MONGODB-OIDC&
                 authMechanismProperties=ENVIRONMENT:k8s&
                 retryWrites=true&
