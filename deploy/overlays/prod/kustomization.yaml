@@ -5,3 +5,4 @@ resources:
   - route.yaml
   - deployment.yaml
   - security.yaml
+  - service.yaml
