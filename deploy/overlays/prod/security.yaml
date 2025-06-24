@@ -16,6 +16,7 @@ spec:
         name: oauth2-proxy
         namespace: auth
         port: 4180
+      path: /oauth2/auth
       headersToBackend:
         - X-Auth-Request-User
         - X-Auth-Request-Groups
@@ -39,6 +40,7 @@ spec:
         name: oauth2-proxy
         namespace: auth
         port: 4180
+      path: /oauth2/auth
       headersToBackend:
         - X-Auth-Request-User
         - X-Auth-Request-Groups
