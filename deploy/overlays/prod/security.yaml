@@ -12,10 +12,10 @@ spec:
       - Cookie
       - Authorization
     http:
-      backendRef:
-        name: oauth2-proxy
-        namespace: auth
-        port: 4180
+      backendRefs:
+        - name: oauth2-proxy
+          namespace: auth
+          port: 4180
       path: /oauth2/auth
       headersToBackend:
         - X-Auth-Request-User
@@ -36,10 +36,10 @@ spec:
       - Cookie
       - Authorization
     http:
-      backendRef:
-        name: oauth2-proxy
-        namespace: auth
-        port: 4180
+      backendRefs:
+        - name: oauth2-proxy
+          namespace: auth
+          port: 4180
       path: /oauth2/auth
       headersToBackend:
         - X-Auth-Request-User
