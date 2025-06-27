@@ -3,10 +3,10 @@ kind: SecurityPolicy
 metadata:
   name: roam-protected
 spec:
-  targetRef:
-    group: gateway.networking.k8s.io
-    kind: HTTPRoute
-    name: roam-protected
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      name: roam-protected
   extAuth:
     headersToExtAuth:
       - Cookie
