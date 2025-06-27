@@ -4,5 +4,4 @@ resources:
   - ../../base
   - route.yaml
   - deployment.yaml
-  - security.yaml
   - service.yaml
