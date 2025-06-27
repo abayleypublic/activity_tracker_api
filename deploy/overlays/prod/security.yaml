@@ -1,0 +1,24 @@
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: SecurityPolicy
+metadata:
+  name: roam-protected
+spec:
+  targetRef:
+    group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    name: roam-protected
+  extAuth:
+    headersToExtAuth:
+      - Cookie
+      - Authorization
+    http:
+      backendRefs:
+        - name: oauth2-proxy
+          namespace: auth
+          port: 4180
+      path: /oauth2/auth
+      headersToBackend:
+        - X-Auth-Request-User
+        - X-Auth-Request-Groups
+        - Authorization
+    recomputeRoute: true
