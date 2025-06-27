@@ -11,6 +11,10 @@ spec:
     headersToExtAuth:
       - Cookie
       - Authorization
+      - Host
+      - X-Forwarded-Host
+      - X-Forwarded-Proto
+      - X-Forwarded-Uri
     http:
       backendRefs:
         - name: oauth2-proxy
