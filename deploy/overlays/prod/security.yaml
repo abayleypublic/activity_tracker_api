@@ -16,7 +16,6 @@ spec:
       - X-Forwarded-Proto
       - X-Forwarded-Uri
     http:
-      path: /oauth2/auth
       backendRefs:
         - name: oauth2-proxy
           namespace: auth
