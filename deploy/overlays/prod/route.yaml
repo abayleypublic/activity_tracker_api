@@ -54,7 +54,7 @@ spec:
     - matches:
         - path:
             type: PathPrefix
-            value: /oauth2/
+            value: /oauth2
       backendRefs:
         - name: oauth2-proxy
           namespace: auth
