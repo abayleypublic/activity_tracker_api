@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -93,10 +94,12 @@ func (s *MongoDBService[T]) FindAll(ctx context.Context, resources interface{}, 
 
 	cur, err := s.Find(ctx, criteria)
 	if err != nil {
+		slog.Error("error finding resources", "error", err, "criteria", criteria)
 		return ErrUnknownError
 	}
 
 	if err = cur.All(ctx, resources); err != nil {
+		slog.Error("error decoding resources", "error", err, "criteria", criteria)
 		return ErrUnknownError
 	}
 
