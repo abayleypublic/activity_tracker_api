@@ -50,11 +50,13 @@ func Logging(req typhon.Request, svc typhon.Service) typhon.Response {
 // ActorFilter updates the context with details of the user making the request.
 func (a *API) ActorFilter(req typhon.Request, svc typhon.Service) typhon.Response {
 	user := req.Header.Get("X-Auth-Request-User")
+	email := req.Header.Get("X-Auth-Request-Email")
 	groups := req.Header.Get("X-Auth-Request-Groups")
 
 	if req.URL.Path != "/health" {
 		// Skip setting user context for health checks
 		slog.Info(req.Context, "ActorFilter: X-Auth-Request-User: %s", user)
+		slog.Info(req.Context, "ActorFilter: X-Auth-Request-Email: %s", email)
 		slog.Info(req.Context, "ActorFilter: X-Auth-Request-Groups: %s", groups)
 	}
 
