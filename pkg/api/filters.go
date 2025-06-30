@@ -52,6 +52,9 @@ func (a *API) ActorFilter(req typhon.Request, svc typhon.Service) typhon.Respons
 	user := req.Header.Get("X-Auth-Request-User")
 	slog.Info(req.Context, "ActorFilter: X-Auth-Request-User: %s", user)
 
+	groups := req.Header.Get("X-Auth-Request-Groups")
+	slog.Info(req.Context, "ActorFilter: X-Auth-Request-Groups: %s", groups)
+
 	if a.env == DEV {
 		req.Context = context.WithValue(req.Context, service.UserCtxKey, a.cfg.UserContext)
 		return svc(req)
