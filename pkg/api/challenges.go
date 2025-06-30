@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"log/slog"
 	"net/http"
 
 	"github.com/AustinBayley/activity_tracker_api/pkg/challenges"
@@ -14,6 +15,7 @@ func (a *API) GetChallenges(req typhon.Request) Response {
 
 	cs := []challenges.Challenge{}
 	if err := a.challenges.ReadAll(req.Context, &cs); err != nil {
+		slog.ErrorContext(req.Context, "error reading challenges", "error", err)
 		return NewResponse(NotFound(err.Error(), err))
 	}
 

@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"log/slog"
 	"net/http"
 
 	"github.com/AustinBayley/activity_tracker_api/pkg/service"
@@ -14,6 +15,7 @@ func (a *API) GetUsers(req typhon.Request) Response {
 
 	users := []users.PartialUser{}
 	if err := a.users.ReadAllRaw(req.Context, &users); err != nil {
+		slog.ErrorContext(req.Context, "error reading users", "error", err)
 		return NewResponse(NotFound(err.Error(), err))
 	}
 

@@ -49,6 +49,8 @@ func Logging(req typhon.Request, svc typhon.Service) typhon.Response {
 
 // ActorFilter updates the context with details of the user making the request.
 func (a *API) ActorFilter(req typhon.Request, svc typhon.Service) typhon.Response {
+	user := req.Header.Get("X-Auth-Request-User")
+	slog.Info(req.Context, "ActorFilter: X-Auth-Request-User: %s", user)
 
 	if a.env == DEV {
 		req.Context = context.WithValue(req.Context, service.UserCtxKey, a.cfg.UserContext)
@@ -56,7 +58,7 @@ func (a *API) ActorFilter(req typhon.Request, svc typhon.Service) typhon.Respons
 	}
 
 	req.Context = context.WithValue(req.Context, service.UserCtxKey, service.RequestContext{
-		UserID: "",
+		UserID: service.ID(user),
 		Admin:  false,
 	})
 
