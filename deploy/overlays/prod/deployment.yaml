@@ -44,7 +44,7 @@ spec:
                   key: API_KEY
           volumeMounts:
             - name: ksa-token
-              mountPath: /var/run/secrets/tokens
+              mountPath: /var/run/secrets/kubernetes.io/serviceaccount
               readOnly: true
           readinessProbe:
             httpGet:
@@ -59,7 +59,7 @@ spec:
           projected:
             sources:
               - serviceAccountToken:
-                  path: id-token
+                  path: token
                   audience: mongodb
                   expirationSeconds: 3600
 ---
