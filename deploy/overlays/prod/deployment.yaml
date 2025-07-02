@@ -30,7 +30,7 @@ spec:
               value: >-
                 mongodb+srv://portfolio.gupwyyx.mongodb.net/?
                 authMechanism=MONGODB-OIDC&
-                authMechanismProperties=ENVIRONMENT:k8s&
+                authMechanismProperties=ENVIRONMENT:k8s,TOKEN_RESOURCE:mongodb&
                 retryWrites=true&
                 w=majority
             - name: ENVIRONMENT
