@@ -36,10 +36,10 @@ resource "google_apikeys_key" "maps" {
 # }
 
 resource "oci_vault_secret" "prod_maps_api_key" {
-  compartment_id = "ocid1.compartment.oc1..aaaaaaaaeef3gmatoiwjkxw65hot2n3lb7qkxjuw5k3vebozv7wl2od7cwvq"
-  key_id         = "ocid1.key.oc1.uk-london-1.eruckcfxaaarq.abwgiljtucsyrvx76zf5uwpb5flj5vyqgjqldzwdn25fwo2ssycgisrvvywq"
+  compartment_id = var.compartment_id
+  key_id         = var.key_id
   secret_name    = "prod_roam_maps_api_key"
-  vault_id       = "ocid1.vault.oc1.uk-london-1.eruckcfxaaarq.abwgiljsf5ckladyqmxmnjo2zgc6sdymeqsic3ydbgrhuj7l2ulhl7k7mgda"
+  vault_id       = var.vault_id
 
   secret_content {
     content_type = "BASE64"
