@@ -28,7 +28,7 @@ spec:
             - containerPort: 80
           env:
             - name: MONGODB_URI
-              value: "mongodb+srv://portfolio.gupwyyx.mongodb.net/?authMechanism=MONGODB-OIDC&authMechanismProperties=ENVIRONMENT:k8s&retryWrites=true&w=majority"
+              value: "mongodb+srv://portfolio.gupwyyx.mongodb.net/?authSource=%24external&authMechanism=MONGODB-OIDC&authMechanismProperties=ENVIRONMENT:k8s&retryWrites=true&w=majority"
             - name: ENVIRONMENT
               value: prod
             - name: PORT
