@@ -5,7 +5,7 @@ import (
 
 	"github.com/AustinBayley/activity_tracker_api/pkg/service"
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo"
 )
 
 const (

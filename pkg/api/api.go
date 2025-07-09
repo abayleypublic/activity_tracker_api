@@ -15,7 +15,7 @@ import (
 	"github.com/AustinBayley/activity_tracker_api/pkg/service"
 	"github.com/AustinBayley/activity_tracker_api/pkg/users"
 	"github.com/monzo/typhon"
-	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo"
 )
 
 type Environment string

@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/AustinBayley/activity_tracker_api/pkg/service"
-	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo"
 )
 
 type Activities struct {

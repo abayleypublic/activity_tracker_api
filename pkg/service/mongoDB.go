@@ -6,8 +6,8 @@ import (
 	"log/slog"
 
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 var (
@@ -140,7 +140,7 @@ func (s *MongoDBService[T]) UpdateWithCriteria(ctx context.Context, resource T, 
 		return ErrForbidden
 	}
 
-	opts := options.Update().SetUpsert(true)
+	opts := options.UpdateOne().SetUpsert(true)
 	res, err := s.UpdateOne(ctx, criteria, bson.D{{Key: "$set", Value: resource}}, opts)
 	if err != nil {
 		return ErrUnknownError
@@ -187,7 +187,7 @@ func (s *MongoDBService[T]) ReadAttribute(ctx context.Context, resourceID ID, at
 
 	opts := options.FindOne().SetProjection(bson.M{s.IDKey: 0, attributeKey: 1})
 
-	raw, err := s.FindOne(ctx, bson.D{{Key: s.IDKey, Value: resourceID}}, opts).DecodeBytes()
+	raw, err := s.FindOne(ctx, bson.D{{Key: s.IDKey, Value: resourceID}}, opts).Raw()
 	if err != nil {
 		switch err {
 		case mongo.ErrNoDocuments:
@@ -209,7 +209,7 @@ func (s *MongoDBService[T]) ReadSingleAttribute(ctx context.Context, resourceID 
 
 	// Set the projection to only return the elements that match a condition & then only return one
 	opts := options.FindOne().SetProjection(bson.M{s.IDKey: 0, attributeKey: bson.M{"$elemMatch": bson.M{s.IDKey: attributeID}}})
-	raw, err := s.FindOne(ctx, bson.D{{Key: s.IDKey, Value: resourceID}}, opts).DecodeBytes()
+	raw, err := s.FindOne(ctx, bson.D{{Key: s.IDKey, Value: resourceID}}, opts).Raw()
 
 	if err != nil {
 		switch err {
@@ -225,7 +225,7 @@ func (s *MongoDBService[T]) ReadSingleAttribute(ctx context.Context, resourceID 
 		return ErrResourceNotFound
 	}
 
-	err = arr.Index(0).Value().Unmarshal(attribute)
+	err = arr.Index(0).Unmarshal(attribute)
 	if err != nil {
 		return err
 	}
