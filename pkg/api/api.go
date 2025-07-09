@@ -115,6 +115,7 @@ func (a *API) Start() {
 		// Test Mongodb connection
 		err := a.db.Client().Ping(req.Context, nil)
 		if err != nil {
+			log.Println("health check failed:", err)
 			return req.ResponseWithCode(err, http.StatusServiceUnavailable)
 		}
 
