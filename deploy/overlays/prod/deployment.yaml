@@ -20,6 +20,7 @@ spec:
         app: api
     spec:
       serviceAccountName: roam-sa
+      automountServiceAccountToken: false
       containers:
         - name: api
           image: europe-west2-docker.pkg.dev/portfolio-463406/docker-repository/activity_tracker_api
