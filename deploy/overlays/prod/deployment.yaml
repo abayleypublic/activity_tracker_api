@@ -27,17 +27,13 @@ spec:
           ports:
             - containerPort: 80
           env:
-            - name: MONGODB_URI
-              value: "mongodb+srv://portfolio.gupwyyx.mongodb.net/roam?authSource=%24external&authMechanism=MONGODB-OIDC&authMechanismProperties=ENVIRONMENT:k8s&retryWrites=true&w=majority"
             - name: ENVIRONMENT
               value: prod
             - name: PORT
               value: "80"
-            - name: MAPS_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: maps-key
-                  key: API_KEY
+          envFrom:
+            - secretRef:
+                name: api-secrets
           volumeMounts:
             - name: ksa-token
               mountPath: /var/run/secrets/kubernetes.io/serviceaccount
@@ -62,15 +58,18 @@ spec:
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
 metadata:
-  name: maps-key
+  name: api-secrets
 spec:
   refreshInterval: "1h"
   secretStoreRef:
     name: oci-secret-store
     kind: ClusterSecretStore
   target:
-    name: maps-key
+    name: api-secrets
   data:
-    - secretKey: API_KEY
+    - secretKey: MAPS_KEY
       remoteRef:
         key: prod_roam_maps_api_key
+    - secretKey: MONGODB_URI
+      remoteRef:
+        key: prod_roam_mongodb_uri
