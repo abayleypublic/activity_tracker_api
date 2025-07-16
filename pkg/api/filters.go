@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	"github.com/AustinBayley/activity_tracker_api/pkg/service"
-	"github.com/monzo/slog"
 	"github.com/monzo/typhon"
+	"github.com/rs/zerolog/log"
 )
 
 const (
@@ -39,14 +39,39 @@ func Logging(req typhon.Request, svc typhon.Service) typhon.Response {
 	res := svc(req)
 	user, err := service.GetActorContext(res.Request.Context)
 	if err != nil {
-		slog.Error(req.Context, "📡 %v %v - %v - %v - %v - %v - %v", req.Method, req.URL, req.RemoteAddr, user.UserID, user.Admin, res.StatusCode, "failed to get actor context")
+		log.Error().
+			Err(err).
+			Str("method", req.Method).
+			Str("url", req.URL.String()).
+			Str("remote address", req.RemoteAddr).
+			Str("user id", string(user.UserID)).
+			Bool("admin", false).
+			Int("status code", res.StatusCode).
+			Msg("failed to get actor context")
+
 		return res
 	}
 
 	if err := res.Error; err != nil {
-		slog.Error(req.Context, "📡 %v %v - %v - %v - %v - %v - %v", req.Method, req.URL, req.RemoteAddr, user.UserID, user.Admin, res.StatusCode, res.Error.Error())
+		log.Error().
+			Err(res.Error).
+			Str("method", req.Method).
+			Str("url", req.URL.String()).
+			Str("remote address", req.RemoteAddr).
+			Str("user id", string(user.UserID)).
+			Bool("admin", false).
+			Int("status code", res.StatusCode).
+			Msg("actor context error")
 	} else {
-		slog.Debug(req.Context, "📡 %v %v - %v - %v - %v - %v", req.Method, req.URL, req.RemoteAddr, user.UserID, user.Admin, res.StatusCode)
+		log.Debug().
+			Err(res.Error).
+			Str("method", req.Method).
+			Str("url", req.URL.String()).
+			Str("remote address", req.RemoteAddr).
+			Str("user id", string(user.UserID)).
+			Bool("admin", false).
+			Int("status code", res.StatusCode).
+			Msg("got actor context")
 	}
 
 	return res
