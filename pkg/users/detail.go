@@ -61,38 +61,27 @@ func (svc *Details) Get(ctx context.Context, id service.ID, user interface{}) er
 	return nil
 }
 
-type ListOptions struct {
+type DetailListOptions struct {
 	Limit int64
 	Skip  int64
-
-	Filter bson.D
 }
 
-func NewListOptions() ListOptions {
-	return ListOptions{}
+func NewDetailListOptions() DetailListOptions {
+	return DetailListOptions{}
 }
 
-func (opts *ListOptions) SetLimit(limit int64) *ListOptions {
+func (opts *DetailListOptions) SetLimit(limit int64) *DetailListOptions {
 	opts.Limit = limit
 	return opts
 }
 
-func (opts *ListOptions) SetSkip(skip int64) *ListOptions {
+func (opts *DetailListOptions) SetSkip(skip int64) *DetailListOptions {
 	opts.Skip = skip
 	return opts
 }
 
-func (opts *ListOptions) SetFilter(conditions ...bson.E) *ListOptions {
-	opts.Filter = make(bson.D, 0, len(conditions))
-	for _, condition := range conditions {
-		opts.Filter = append(opts.Filter, condition)
-	}
-
-	return opts
-}
-
 // List retrieves users based on the given criteria.
-func (svc *Details) List(ctx context.Context, opts ListOptions, users interface{}) error {
+func (svc *Details) List(ctx context.Context, opts DetailListOptions, users interface{}) error {
 	options := options.Find()
 
 	if opts.Limit > 0 {
@@ -103,7 +92,7 @@ func (svc *Details) List(ctx context.Context, opts ListOptions, users interface{
 		options = options.SetSkip(opts.Skip)
 	}
 
-	cursor, err := svc.Find(ctx, opts.Filter, options)
+	cursor, err := svc.Find(ctx, bson.D{}, options)
 	if err != nil {
 		return fmt.Errorf("%w: %w", ErrUnknown, err)
 	}

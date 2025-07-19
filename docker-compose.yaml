@@ -9,7 +9,6 @@ services:
     ports:
       - "8000:80"
     volumes:
-      - ./:/app
       - $HOME/.config/gcloud/:/config:ro
   mongo:
     container_name: activity_db

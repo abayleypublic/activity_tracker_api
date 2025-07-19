@@ -58,6 +58,36 @@ func (svc *Service) Get(ctx context.Context, id service.ID, user *User) error {
 	return nil
 }
 
+type ListOptions struct {
+	Limit int64
+	Skip  int64
+}
+
+func NewListOptions() ListOptions {
+	return ListOptions{}
+}
+
+func (opts *ListOptions) SetLimit(limit int64) *ListOptions {
+	opts.Limit = limit
+	return opts
+}
+
+func (opts *ListOptions) SetSkip(skip int64) *ListOptions {
+	opts.Skip = skip
+	return opts
+}
+
+func (svc *Service) List(ctx context.Context, opts ListOptions, users []Detail) error {
+	los := NewDetailListOptions()
+	los = *los.SetLimit(opts.Limit).SetSkip(opts.Skip)
+
+	if err := svc.users.List(ctx, los, &users); err != nil {
+		return fmt.Errorf("failed to list users: %w", err)
+	}
+
+	return nil
+}
+
 // TODO - ensure this is done with a transaction
 func (svc *Service) Delete(ctx context.Context, id service.ID) error {
 	if err := svc.users.Delete(ctx, id); err != nil {

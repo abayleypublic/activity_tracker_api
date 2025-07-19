@@ -4,7 +4,6 @@ import (
 	"github.com/AustinBayley/activity_tracker_api/pkg/activities"
 	"github.com/AustinBayley/activity_tracker_api/pkg/api"
 	"github.com/AustinBayley/activity_tracker_api/pkg/challenges"
-	"github.com/AustinBayley/activity_tracker_api/pkg/service"
 	"github.com/AustinBayley/activity_tracker_api/pkg/users"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/rs/zerolog/log"
@@ -18,10 +17,6 @@ type Config struct {
 	MongoURI     string          `envconfig:"MONGODB_URI" required:"true"`
 	DatabaseName string          `envconfig:"DATABASE_NAME" default:"activities"`
 	AdminGroup   string          `envconfig:"ADMIN_GROUP" default:"activity_admin"`
-
-	// For testing & such
-	User  service.ID `envconfig:"USER" default:""`
-	Admin bool       `envconfig:"ADMIN" default:"false"`
 }
 
 func main() {

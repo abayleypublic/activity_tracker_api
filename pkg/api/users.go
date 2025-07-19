@@ -14,13 +14,21 @@ import (
 )
 
 func (a *API) GetUsers(req *gin.Context) {
+	opts := users.NewListOptions()
 
-	users := []users.PartialUser{}
-	if err := a.users.ReadAllRaw(req.Context, &users); err != nil {
-		return NewResponse(NotFound(err.Error(), err))
+	users := []users.Detail{}
+	if err := a.users.List(req, opts, users); err != nil {
+		log.Error().
+			Err(err).
+			Msg("error listing users")
+
+		req.JSON(http.StatusInternalServerError, ErrorResponse{
+			Cause: InternalServer,
+		})
+		return
 	}
 
-	return NewResponse(users)
+	req.JSON(http.StatusOK, users)
 }
 
 func (a *API) GetUser(req *gin.Context) {
