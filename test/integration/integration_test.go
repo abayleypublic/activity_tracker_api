@@ -25,7 +25,7 @@ var (
 	admin   bool
 	user    service.ID = service.UnknownUser
 	db      *mongo.Database
-	as      *activities.Activities
+	as      *activities.Service
 	us      *users.Users
 	cs      *challenges.Challenges
 )

@@ -2,38 +2,53 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"github.com/AustinBayley/activity_tracker_api/pkg/activities"
 	"github.com/AustinBayley/activity_tracker_api/pkg/service"
 	jsonpatch "github.com/evanphx/json-patch/v5"
-	"github.com/monzo/typhon"
+	"github.com/gin-gonic/gin"
+	"github.com/rs/zerolog/log"
 )
 
-func (a *API) GetUserActivity(req typhon.Request) Response {
-	id, ok := a.Params(req)["userID"]
-	if !ok {
-		return NewResponse(BadRequest("id not supplied", nil))
+func (a *API) GetActivity(req *gin.Context) {
+	aid := req.Param("activityID")
+	if aid == "" {
+		req.JSON(http.StatusBadRequest, ErrorResponse{
+			Cause: "activity id not supplied",
+		})
+		return
 	}
 
-	aid, ok := a.Params(req)["activityID"]
-	if !ok {
-		return NewResponse(BadRequest("activity id not supplied", nil))
-	}
-
-	userID := service.ID(id)
 	activityID := service.ID(aid)
 
-	res, err := a.users.ReadUserActivity(req.Context, userID, activityID)
-	if err != nil {
-		return NewResponse(NotFound(err.Error(), err))
+	activity := activities.Activity{}
+	if err := a.activities.Get(req, activityID, &activity); err != nil {
+		log.Error().
+			Err(err).
+			Str("activityID", aid).
+			Msg("error getting activity")
+
+		if errors.Is(err, activities.ErrNotFound) {
+			req.JSON(http.StatusNotFound, ErrorResponse{
+				Cause: NotFound,
+			})
+			return
+		}
+
+		req.JSON(http.StatusInternalServerError, ErrorResponse{
+			Cause: InternalServer,
+		})
+		return
 	}
 
-	return NewResponse(res)
+	req.JSON(http.StatusOK, activity)
 }
 
-func (a *API) PostUserActivity(req typhon.Request) Response {
-	id, ok := a.Params(req)["userID"]
+func (a *API) PostUserActivity(req *gin.Context) {
+
+	id, ok := req.Params["userID"]
 	if !ok {
 		return NewResponse(BadRequest("id not supplied", nil))
 	}
@@ -54,7 +69,7 @@ func (a *API) PostUserActivity(req typhon.Request) Response {
 	return NewResponseWithCode(res, http.StatusCreated)
 }
 
-func (a *API) PatchUserActivity(req typhon.Request) Response {
+func (a *API) PatchUserActivity(req *gin.Context) {
 	// Get user ID
 	id, ok := a.Params(req)["userID"]
 	if !ok {
@@ -115,7 +130,7 @@ func (a *API) PatchUserActivity(req typhon.Request) Response {
 	return NewResponse(res)
 }
 
-func (a *API) DeleteUserActivity(req typhon.Request) Response {
+func (a *API) DeleteUserActivity(req *gin.Context) {
 	id, ok := a.Params(req)["userID"]
 	if !ok {
 		return NewResponse(BadRequest("user id not supplied", nil))
@@ -133,7 +148,7 @@ func (a *API) DeleteUserActivity(req typhon.Request) Response {
 	return NewResponseWithCode(nil, http.StatusNoContent)
 }
 
-func (a *API) GetUserActivities(req typhon.Request) Response {
+func (a *API) GetUserActivities(req *gin.Context) {
 	id, ok := a.Params(req)["userID"]
 	if !ok {
 		return NewResponse(BadRequest("user id not supplied", nil))

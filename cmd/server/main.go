@@ -1,51 +1,71 @@
 package main
 
 import (
-	"log"
-	"os"
-	"strconv"
-
+	"github.com/AustinBayley/activity_tracker_api/pkg/activities"
 	"github.com/AustinBayley/activity_tracker_api/pkg/api"
+	"github.com/AustinBayley/activity_tracker_api/pkg/challenges"
 	"github.com/AustinBayley/activity_tracker_api/pkg/service"
+	"github.com/AustinBayley/activity_tracker_api/pkg/users"
+	"github.com/kelseyhightower/envconfig"
+	"github.com/rs/zerolog/log"
+	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
-const (
-	projectID string = "portfolio-463406"
-	dbName    string = "roam"
-)
+type Config struct {
+	Environment  api.Environment `envconfig:"ENVIRONMENT" default:"dev"`
+	Port         int             `envconfig:"PORT" default:"8080"`
+	MongoURI     string          `envconfig:"MONGODB_URI" required:"true"`
+	DatabaseName string          `envconfig:"DATABASE_NAME" default:"activities"`
+	AdminGroup   string          `envconfig:"ADMIN_GROUP" default:"activity_admin"`
+
+	// For testing & such
+	User  service.ID `envconfig:"USER" default:""`
+	Admin bool       `envconfig:"ADMIN" default:"false"`
+}
 
 func main() {
-	var env api.Environment
-	if value, ok := os.LookupEnv("ENVIRONMENT"); ok {
-		env = api.Environment(value)
-	} else {
-		env = api.DEV
+	var cfg Config
+	if err := envconfig.Process("", &cfg); err != nil {
+		log.Fatal().
+			Err(err).
+			Msg("failed to process environment variables")
 	}
 
-	mapsKey := os.Getenv("MAPS_KEY")
-	mongoURI := os.Getenv("MONGODB_URI")
-
-	port, err := strconv.Atoi(os.Getenv("PORT"))
+	client, err := mongo.Connect(options.Client().ApplyURI(cfg.MongoURI))
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatal().
+			Err(err).
+			Msg("failed to connect to MongoDB")
 	}
 
-	user := os.Getenv("USER")
-	admin, err := strconv.ParseBool(os.Getenv("ADMIN"))
+	db := client.Database(cfg.DatabaseName)
+
+	acts := activities.New(db.Collection("activities"))
+	cds := challenges.NewDetails(db.Collection("challenges"))
+	ms := challenges.NewMemberships(db.Collection("memberships"))
+	cs := challenges.New(cds, ms)
+
+	uds := users.NewDetails(db.Collection("users"))
+	us := users.New(
+		uds,
+		ms,
+		cs,
+		acts,
+	)
+
+	err = api.NewAPI(api.NewConfig(
+		cfg.Environment,
+		db,
+		cfg.Port,
+		acts,
+		cs,
+		us,
+	)).Start()
+
 	if err != nil {
-		admin = false
+		log.Fatal().
+			Err(err).
+			Msg("API failure")
 	}
-
-	cfg := api.NewConfig(env, mongoURI, dbName, port, projectID, mapsKey, service.RequestContext{
-		UserID: service.ID(user),
-		Admin:  admin,
-	})
-
-	a, err := api.NewAPI(cfg)
-
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	a.Start()
 }

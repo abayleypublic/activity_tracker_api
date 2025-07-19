@@ -16,11 +16,3 @@ func (id ID) ConvertID() string {
 func NewID() ID {
 	return ID(primitive.NewObjectID().Hex())
 }
-
-func (id ID) GetID() ID {
-	return id
-}
-
-var (
-	_ Attribute = (*ID)(nil)
-)

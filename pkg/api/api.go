@@ -3,7 +3,6 @@ package api
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -12,9 +11,9 @@ import (
 
 	"github.com/AustinBayley/activity_tracker_api/pkg/activities"
 	"github.com/AustinBayley/activity_tracker_api/pkg/challenges"
-	"github.com/AustinBayley/activity_tracker_api/pkg/service"
 	"github.com/AustinBayley/activity_tracker_api/pkg/users"
-	"github.com/monzo/typhon"
+	"github.com/gin-gonic/gin"
+	"github.com/rs/zerolog/log"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 )
 
@@ -26,164 +25,160 @@ const (
 	PROD Environment = "prod"
 )
 
-type Response struct {
-	Data interface{}
-	code int   `json:"-"`
-	err  error `json:"-"`
+type Config struct {
+	Environment Environment
+	Database    *mongo.Database
+	Port        int
+	AdminGroup  string
+
+	// Services
+	activities *activities.Service
+	challenges *challenges.Service
+	users      *users.Service
 }
 
-func NewResponseWithCode(data interface{}, code int) Response {
-	res := Response{data, code, nil}
+func NewConfig(
+	environment Environment,
+	database *mongo.Database,
+	port int,
 
-	switch data := data.(type) {
-	case *Error:
-		res.code = data.Code
-		res.err = data
-	case error:
-		res.err = data
-		switch data {
-		case service.ErrResourceNotFound:
-			res.code = http.StatusNotFound
-		case service.ErrBadSyntax:
-			res.code = http.StatusBadRequest
-		case service.ErrForbidden:
-			res.code = http.StatusForbidden
-		case service.ErrResourceAlreadyExists:
-			res.code = http.StatusConflict
-		default:
-			res.code = http.StatusInternalServerError
-		}
+	activities *activities.Service,
+	challenges *challenges.Service,
+	users *users.Service,
+) Config {
+	return Config{
+		Environment: environment,
+		Database:    database,
+		Port:        port,
+		activities:  activities,
+		challenges:  challenges,
+		users:       users,
 	}
-
-	return res
-}
-
-func NewResponse(data interface{}) Response {
-	return NewResponseWithCode(data, http.StatusOK)
-}
-
-type Service func(req typhon.Request) Response
-
-func addFilters(svc typhon.Service, filters []typhon.Filter) typhon.Service {
-	for _, f := range filters {
-		svc = svc.Filter(f)
-	}
-	return svc
-}
-
-func serve(service Service, filters []typhon.Filter) typhon.Service {
-	return addFilters(func(req typhon.Request) typhon.Response {
-		res := service(req)
-		resp := req.ResponseWithCode(res.Data, res.code)
-		resp.Error = res.err
-		return resp
-	}, filters)
 }
 
 type API struct {
-	typhon.Router
+	*gin.Engine
 	env        Environment
-	cfg        Config
+	port       int
+	adminGroup string
 	db         *mongo.Database
-	users      *users.Users
-	challenges *challenges.Challenges
-	activities *activities.Activities
+	users      *users.Service
+	challenges *challenges.Service
+	activities *activities.Service
 }
 
-func NewAPI(cfg Config) (*API, error) {
-
-	db := NewDB(cfg.MongodbURI, cfg.DBName)
-	activities := activities.NewActivities(db.Collection("activities"))
-	users := users.NewUsers(db.Collection("users"), activities)
-	challenges := challenges.NewChallenges(db.Collection("challenges"), users)
-
+func NewAPI(cfg Config) *API {
 	return &API{
-		typhon.Router{},
+		gin.Default(),
 		cfg.Environment,
-		cfg,
-		db,
-		users,
-		challenges,
-		activities,
-	}, nil
+		cfg.Port,
+		cfg.AdminGroup,
+		cfg.Database,
+		cfg.users,
+		cfg.challenges,
+		cfg.activities,
+	}
 }
 
-func (a *API) Start() {
-
+func (a *API) Start() error {
 	// Get health of service
-	a.GET("/health", func(req typhon.Request) typhon.Response {
+	a.GET("/health", func(req *gin.Context) {
 		// Test Mongodb connection
-		err := a.db.Client().Ping(req.Context, nil)
+		err := a.db.Client().Ping(req, nil)
 		if err != nil {
-			log.Println("health check failed:", err)
-			return req.ResponseWithCode(err, http.StatusServiceUnavailable)
+			log.Error().
+				Err(err).
+				Msg("failed to ping database")
+
+			req.JSON(http.StatusServiceUnavailable, ErrorResponse{
+				Cause: "database connection failed",
+			})
+			return
 		}
 
-		// if i := locations.Initialised(); !i {
-		// 	return req.ResponseWithCode(nil, http.StatusServiceUnavailable)
-		// }
-
-		return req.ResponseWithCode(nil, http.StatusNoContent)
+		req.JSON(http.StatusOK, gin.H{
+			"status": "ok",
+		})
 	})
 
-	// Admin Routes
-	a.GET("/api/admin/:userID", serve(a.GetAdmin, []typhon.Filter{}))       // admin
-	a.PUT("/api/admin/:userID", serve(a.PutAdmin, []typhon.Filter{}))       // admin
-	a.DELETE("/api/admin/:userID", serve(a.DeleteAdmin, []typhon.Filter{})) // admin
-
 	// Challenges Routes
-	a.GET("/api/challenges", serve(a.GetChallenges, []typhon.Filter{}))          // public
-	a.POST("/api/challenges", serve(a.PostChallenge, []typhon.Filter{}))         // auth
-	a.GET("/api/challenges/:id", serve(a.GetChallenge, []typhon.Filter{}))       // public
-	a.DELETE("/api/challenges/:id", serve(a.DeleteChallenge, []typhon.Filter{})) // auth
-	// a.PATCH("/api/challenges/:id", serve(a.PatchChallenge, []typhon.Filter{})) // auth
-	a.GET("/api/challenges/:id/members/:userID/progress", serve(a.GetProgress, []typhon.Filter{})) // public
+	a.GET("/challenges", a.GetChallenges)          // public
+	a.POST("/challenges", a.PostChallenge)         // auth
+	a.GET("/challenges/:id", a.GetChallenge)       // public
+	a.DELETE("/challenges/:id", a.DeleteChallenge) // auth
+	// a.PATCH("/challenges/:id", a.PatchChallenge) // auth
+	a.GET("/challenges/:id/members/:userID/progress", a.GetProgress) // public
 
 	// User routes
-	a.GET("/api/users", serve(a.GetUsers, []typhon.Filter{}))        // admin
-	a.GET("/api/users/:userID", serve(a.GetUser, []typhon.Filter{})) // auth
-	// a.PATCH("/api/users/:userID", serve(a.PatchUser, []typhon.Filter{})) // valid user
-	a.DELETE("/api/users/:userID", serve(a.DeleteUser, []typhon.Filter{})) // valid user
-	a.PUT("/api/users/:userID", serve(a.PutUser, []typhon.Filter{}))       // valid user
+	a.GET("/users", a.GetUsers)        // admin
+	a.GET("/users/:userID", a.GetUser) // auth
+	// a.PATCH("/users/:userID", a.PatchUser) // valid user
+	a.DELETE("/users/:userID", a.DeleteUser) // valid user
+	a.PUT("/users/:userID", a.PutUser)       // valid user
 
 	// User activities routes
-	a.GET("/api/users/:userID/activities", serve(a.GetUserActivities, []typhon.Filter{}))           // public
-	a.POST("/api/users/:userID/activities", serve(a.PostUserActivity, []typhon.Filter{}))           // valid user
-	a.GET("/api/users/:userID/activities/:activityID", serve(a.GetUserActivity, []typhon.Filter{})) // public
-	// a.PATCH("/api/users/:userID/activities/:activityID", serve(a.PatchUserActivity, []typhon.Filter{})) // valid user
-	a.DELETE("/api/users/:userID/activities/:activityID", serve(a.DeleteUserActivity, []typhon.Filter{})) // valid user
+	a.GET("/users/:userID/activities", a.GetUserActivities)       // public
+	a.POST("/users/:userID/activities", a.PostUserActivity)       // valid user
+	a.GET("/users/:userID/activities/:activityID", a.GetActivity) // public
+	// a.PATCH("/users/:userID/activities/:activityID", a.PatchUserActivity) // valid user
+	a.DELETE("/users/:userID/activities/:activityID", a.DeleteUserActivity) // valid user
 
 	// User challenge routes
-	a.PUT("/api/users/:userID/challenges/:id", serve(a.JoinChallenge, []typhon.Filter{}))     // valid user
-	a.DELETE("/api/users/:userID/challenges/:id", serve(a.LeaveChallenge, []typhon.Filter{})) // valid user
+	a.PUT("/users/:userID/challenges/:id", a.SetChallengeMembership(true))     // valid user
+	a.DELETE("/users/:userID/challenges/:id", a.SetChallengeMembership(false)) // valid user
 
-	a.GET("/api/profile", serve(a.GetProfile, []typhon.Filter{})) // auth (maybe valid user?)
-
-	// Make sure body filtering and logging go last!
-	svc := a.Serve().
-		Filter(typhon.H2cFilter).
-		Filter(typhon.ErrorFilter).
-		Filter(a.ActorFilter).
-		Filter(Logging)
+	a.GET("/profile", a.GetProfile) // auth (maybe valid user?)
 
 	defer func() {
-		log.Printf("Shutting down database connection")
+		log.Warn().
+			Msg("shutting down database connection")
+
 		if err := a.db.Client().Disconnect(context.Background()); err != nil {
-			log.Fatalln(err)
+			log.Error().
+				Err(err).
+				Msg("failed to disconnect from database")
 		}
 	}()
 
-	srv, err := typhon.Listen(svc, fmt.Sprintf(":%d", a.cfg.Port), typhon.WithTimeout(typhon.TimeoutOptions{Read: time.Second * 10}))
-	if err != nil {
-		log.Fatalln(err)
+	a.Use(gin.Recovery())
+	a.Use(gin.Logger())
+	a.Use(a.ActorFilter)
+
+	srv := &http.Server{
+		Addr:    fmt.Sprintf(":%d", a.port),
+		Handler: a.Handler(),
 	}
-	log.Printf("👋  Listening on %v", srv.Listener().Addr())
+
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatal().
+				Err(err).
+				Msg("failed to start server")
+		}
+	}()
+
+	log.Info().
+		Str("address", srv.Addr).
+		Msg("👋  server listening")
 
 	done := make(chan os.Signal, 1)
 	signal.Notify(done, syscall.SIGINT, syscall.SIGTERM)
 	<-done
-	log.Printf("☠️  Shutting down")
-	c, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+
+	log.Warn().
+		Msg("☠️  shutting down")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	srv.Stop(c)
+
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Warn().
+			Err(err).
+			Msg("failed to gracefully shutdown server")
+	}
+
+	log.Info().
+		Msg("👋  server shutdown")
+
+	return nil
 }

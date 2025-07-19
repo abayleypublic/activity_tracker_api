@@ -2,40 +2,198 @@ package activities
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"time"
 
 	"github.com/AustinBayley/activity_tracker_api/pkg/service"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
-func (a *Activities) ReadActivity(ctx context.Context, id service.ID) (Activity, error) {
+var (
+	ErrAlreadyExists = errors.New("activity already exists")
+	ErrNotFound      = errors.New("activity not found")
+	ErrUnknown       = errors.New("unknown error")
+	ErrInvalid       = errors.New("invalid")
+)
 
-	activity := Activity{}
-	if err := a.Read(ctx, id, &activity); err != nil {
-		return activity, err
+type ActivityType string
+
+const (
+	Any      ActivityType = "any"
+	Walking  ActivityType = "walking"
+	Running  ActivityType = "running"
+	Swimming ActivityType = "swimming"
+	Cycling  ActivityType = "cycling"
+)
+
+type ActivityCategory map[ActivityType]struct{}
+
+var (
+	Moving = ActivityCategory{
+		Walking:  {},
+		Running:  {},
+		Swimming: {},
+		Cycling:  {},
+	}
+)
+
+type Activity struct {
+	ID          service.ID   `json:"id" bson:"_id"`
+	UserID      service.ID   `json:"userID" bson:"userID"`
+	CreatedDate *time.Time   `json:"createdDate,omitempty" bson:"createdDate"`
+	Type        ActivityType `json:"type" bson:"type"`
+	Value       float64      `json:"value" bson:"value"`
+	Start       time.Time    `json:"start" bson:"start"`
+	End         time.Time    `json:"end,omitempty" bson:"end"`
+}
+
+func NewActivity(Type ActivityType, Value float64) Activity {
+	return Activity{
+		ID:    service.NewID(),
+		Type:  Type,
+		Value: Value,
+	}
+}
+
+type Service struct {
+	*mongo.Collection
+}
+
+func New(c *mongo.Collection) *Service {
+	return &Service{c}
+}
+
+// Create adds a new activity to the database.
+func (svc *Service) Create(ctx context.Context, activity *Activity) error {
+	res, err := svc.InsertOne(ctx, activity)
+	if err != nil {
+		if mongo.IsDuplicateKeyError(err) {
+			return ErrAlreadyExists
+		}
+		return fmt.Errorf("%w: %w", ErrUnknown, err)
 	}
 
-	return activity, nil
+	activity.ID = service.ID(res.InsertedID.(string))
 
+	return nil
 }
 
-func (a *Activities) UpdateActivity(ctx context.Context, activity Activity) (Activity, error) {
-
-	if err := a.UpdateWithCriteria(ctx, activity, bson.D{{Key: a.IDKey, Value: activity.ID}}); err != nil {
-		return Activity{}, err
+// Get retrieves an activity by its ID from the database.
+func (svc *Service) Get(ctx context.Context, id service.ID, activity *Activity) error {
+	if err := svc.
+		FindOne(ctx, bson.D{{Key: "_id", Value: id.ConvertID()}}).
+		Decode(activity); err != nil {
+		switch {
+		case errors.Is(err, mongo.ErrNoDocuments):
+			return ErrNotFound
+		}
+		return fmt.Errorf("%w: %w", ErrUnknown, err)
 	}
 
-	return activity, nil
-
+	return nil
 }
 
-// CreateUserActivity adds a new activity to the user's activities.
-// It returns the id of the inserted activity and an error if any occurred.
-func (a *Activities) CreateActivity(ctx context.Context, activity Activity) (service.ID, error) {
-	return a.Create(ctx, activity)
+type ListOptions struct {
+	Limit int64
+	Skip  int64
+
+	User *service.ID
 }
 
-// DeleteUserActivity removes an activity with the given id from the user's activities.
-// It returns a boolean indicating whether the deletion was successful and an error if any occurred.
-func (a *Activities) DeleteActivity(ctx context.Context, activityID service.ID) error {
-	return a.DeleteWithCriteria(ctx, bson.D{{Key: a.IDKey, Value: activityID}})
+func NewListOptions() ListOptions {
+	return ListOptions{}
+}
+
+func (opts *ListOptions) SetLimit(limit int64) *ListOptions {
+	opts.Limit = limit
+	return opts
+}
+
+func (opts *ListOptions) SetSkip(skip int64) *ListOptions {
+	opts.Skip = skip
+	return opts
+}
+
+func (opts *ListOptions) SetUser(id service.ID) *ListOptions {
+	opts.User = &id
+	return opts
+}
+
+// List retrieves activities based on the given criteria.
+func (svc *Service) List(ctx context.Context, opts ListOptions, activities []Activity) error {
+	options := options.Find()
+
+	if opts.Limit > 0 {
+		options = options.SetLimit(opts.Limit)
+	}
+
+	if opts.Skip > 0 {
+		options = options.SetSkip(opts.Skip)
+	}
+
+	filter := bson.D{}
+	if opts.User != nil {
+		filter = append(filter, bson.E{Key: "user", Value: opts.User.ConvertID()})
+	}
+
+	cursor, err := svc.Find(ctx, filter, options)
+	if err != nil {
+		return fmt.Errorf("%w: %w", ErrUnknown, err)
+	}
+
+	if err := cursor.All(ctx, activities); err != nil {
+		return fmt.Errorf("%w: %w", ErrUnknown, err)
+	}
+
+	return nil
+}
+
+// Update updates an activity in the database based on the provided criteria.
+func (svc *Service) Update(ctx context.Context, activity Activity) error {
+	opts := options.UpdateOne().SetUpsert(true)
+	res, err := svc.UpdateOne(
+		ctx,
+		bson.D{},
+		bson.D{{Key: "$set", Value: activity}},
+		opts,
+	)
+	if err != nil {
+		return fmt.Errorf("%w: %w", ErrUnknown, err)
+	}
+
+	if res.UpsertedCount != 1 {
+		return ErrNotFound
+	}
+
+	return nil
+}
+
+type ActivityDeleteOpts struct {
+	ID   *service.ID
+	User *service.ID
+}
+
+// Delete removes an activity from the database by its ID.
+func (svc *Service) Delete(ctx context.Context, opts ActivityDeleteOpts) error {
+	if opts.ID == nil && opts.User == nil {
+		return fmt.Errorf("%w: activity ID or user ID must be supplied", ErrInvalid)
+	}
+
+	filter := bson.D{}
+	if opts.ID != nil {
+		filter = append(filter, bson.E{Key: "_id", Value: opts.ID.ConvertID()})
+	}
+	if opts.User != nil {
+		filter = append(filter, bson.E{Key: "user", Value: opts.User.ConvertID()})
+	}
+
+	_, err := svc.DeleteMany(ctx, filter)
+	if err != nil {
+		return fmt.Errorf("%w: %w", ErrUnknown, err)
+	}
+
+	return nil
 }

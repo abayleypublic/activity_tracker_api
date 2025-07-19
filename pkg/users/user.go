@@ -1,70 +1,83 @@
+// Move this logic to the API me thinks
+
 package users
 
 import (
 	"context"
+	"fmt"
 
+	"github.com/AustinBayley/activity_tracker_api/pkg/activities"
+	"github.com/AustinBayley/activity_tracker_api/pkg/challenges"
 	"github.com/AustinBayley/activity_tracker_api/pkg/service"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/v2/mongo"
 )
 
-const (
-	challengesKey = "challenges"
-)
-
-// Returns either a User or PartialUser depending on whether the user is the actor.
-func (u *Users) ReadUser(ctx context.Context, id service.ID) (PartialUser, error) {
-
-	user := PartialUser{}
-	if err := u.ReadRaw(ctx, service.ID(id), &user); err != nil {
-		return user, err
-	}
-	return user, nil
-
+type User struct {
+	Detail     `json:",inline"`
+	Challenges []service.ID `json:"challenges"`
 }
 
-func (u *Users) JoinChallenge(ctx context.Context, userID service.ID, challengeID service.ID) (service.ID, error) {
-
-	res, err := u.AppendAttribute(ctx, userID, challengesKey, challengeID)
-	if err != nil {
-		return "", err
-	}
-
-	return res, err
+type Service struct {
+	users       *Details
+	memberships *challenges.Memberships
+	challenges  *challenges.Service
+	activities  *activities.Service
 }
 
-func (u *Users) LeaveChallenge(ctx context.Context, userID service.ID, challengeID service.ID) error {
-
-	result, err := u.UpdateOne(ctx, bson.D{{Key: "_id", Value: userID}}, bson.D{{Key: "$pull", Value: bson.D{{Key: challengesKey, Value: challengeID}}}})
-	if err != nil {
-		switch err {
-		case mongo.ErrNoDocuments:
-			return service.ErrResourceNotFound
-		}
-
-		return service.ErrUnknownError
+func New(
+	users *Details,
+	memberships *challenges.Memberships,
+	challenges *challenges.Service,
+	activities *activities.Service,
+) *Service {
+	return &Service{
+		users:       users,
+		memberships: memberships,
+		challenges:  challenges,
+		activities:  activities,
 	}
-
-	if result.ModifiedCount != 1 {
-		return service.ErrResourceNotFound
-	}
-
-	return err
 }
 
-func (u *Users) IsUserMember(ctx context.Context, userID service.ID, challengeID service.ID) (bool, error) {
-
-	user := User{}
-	if err := u.Read(ctx, userID, &user); err != nil {
-		return false, err
+func (svc *Service) Get(ctx context.Context, id service.ID, user *User) error {
+	if err := svc.users.Get(ctx, id, user); err != nil {
+		return fmt.Errorf("failed to get user: %w", err)
 	}
 
-	for _, id := range user.Challenges {
-		if id == challengeID {
-			return true, nil
-		}
+	opts := challenges.ListOptions{
+		User: &id,
 	}
 
-	return false, nil
+	cs := make([]challenges.Challenge, 0)
+	if err := svc.challenges.List(ctx, opts, &cs); err != nil {
+		return fmt.Errorf("failed to list challenges for user: %w", err)
+	}
+
+	for _, c := range cs {
+		user.Challenges = append(user.Challenges, c.ID)
+	}
+
+	return nil
+}
+
+// TODO - ensure this is done with a transaction
+func (svc *Service) Delete(ctx context.Context, id service.ID) error {
+	if err := svc.users.Delete(ctx, id); err != nil {
+		return fmt.Errorf("failed to delete user: %w", err)
+	}
+
+	memsOpts := challenges.MembershipDeleteOpts{
+		User: &id,
+	}
+	if err := svc.memberships.Delete(ctx, memsOpts); err != nil {
+		return fmt.Errorf("failed to delete memberships for user: %w", err)
+	}
+
+	actOpts := activities.ActivityDeleteOpts{
+		User: &id,
+	}
+	if err := svc.activities.Delete(ctx, actOpts); err != nil {
+		return fmt.Errorf("failed to delete activities for user: %w", err)
+	}
+
+	return nil
 
 }

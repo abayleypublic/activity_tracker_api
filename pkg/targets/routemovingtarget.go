@@ -6,7 +6,7 @@ import (
 	"math"
 
 	"github.com/AustinBayley/activity_tracker_api/pkg/activities"
-	"github.com/AustinBayley/activity_tracker_api/pkg/targets/locations"
+	"github.com/AustinBayley/activity_tracker_api/pkg/locations"
 	"go.mongodb.org/mongo-driver/bson"
 )
 
@@ -57,7 +57,7 @@ func (t *RouteMovingTarget) MarshalBSON() ([]byte, error) {
 
 	type RawRouteMovingTarget RouteMovingTarget
 
-	if t.Route.Waypoints == nil || len(t.Route.Waypoints) < 2 {
+	if len(t.Route.Waypoints) < 2 {
 		return bson.Marshal((*RawRouteMovingTarget)(t))
 	}
 

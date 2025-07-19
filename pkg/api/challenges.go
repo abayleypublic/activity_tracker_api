@@ -7,11 +7,10 @@ import (
 	"github.com/AustinBayley/activity_tracker_api/pkg/challenges"
 	"github.com/AustinBayley/activity_tracker_api/pkg/service"
 	jsonpatch "github.com/evanphx/json-patch/v5"
-	"github.com/monzo/typhon"
+	"github.com/gin-gonic/gin"
 )
 
-func (a *API) GetChallenges(req typhon.Request) Response {
-
+func (a *API) GetChallenges(req *gin.Context) {
 	cs := []challenges.Challenge{}
 	if err := a.challenges.ReadAll(req.Context, &cs); err != nil {
 		return NewResponse(NotFound(err.Error(), err))
@@ -21,7 +20,7 @@ func (a *API) GetChallenges(req typhon.Request) Response {
 
 }
 
-func (a *API) GetChallenge(req typhon.Request) Response {
+func (a *API) GetChallenge(req *gin.Context) {
 
 	id, ok := a.Params(req)["id"]
 	if !ok {
@@ -37,7 +36,7 @@ func (a *API) GetChallenge(req typhon.Request) Response {
 
 }
 
-func (a *API) PostChallenge(req typhon.Request) Response {
+func (a *API) PostChallenge(req *gin.Context) {
 
 	var challenge challenges.Challenge
 	if err := req.Decode(&challenge); err != nil {
@@ -54,7 +53,7 @@ func (a *API) PostChallenge(req typhon.Request) Response {
 
 }
 
-func (a *API) PatchChallenge(req typhon.Request) Response {
+func (a *API) PatchChallenge(req *gin.Context) {
 
 	// Get user ID
 	id, ok := a.Params(req)["id"]
@@ -109,7 +108,7 @@ func (a *API) PatchChallenge(req typhon.Request) Response {
 
 }
 
-func (a *API) DeleteChallenge(req typhon.Request) Response {
+func (a *API) DeleteChallenge(req *gin.Context) {
 
 	id, ok := a.Params(req)["id"]
 	if !ok {
@@ -124,8 +123,7 @@ func (a *API) DeleteChallenge(req typhon.Request) Response {
 
 }
 
-func (a *API) GetProgress(req typhon.Request) Response {
-
+func (a *API) GetProgress(req *gin.Context) {
 	id, ok := a.Params(req)["id"]
 	if !ok {
 		return NewResponse(BadRequest("challenge ID not supplied", nil))
@@ -136,11 +134,30 @@ func (a *API) GetProgress(req typhon.Request) Response {
 		return NewResponse(BadRequest("user ID not supplied", nil))
 	}
 
-	progress, err := a.challenges.GetProgress(req.Context, service.ID(id), service.ID(userID))
-	if err != nil {
-		return NewResponse(InternalServer(err.Error(), err))
-	}
+	// isMember, err := c.users.IsUserMember(ctx, memberID, challengeID)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// if !isMember {
+	// 	return nil, service.ErrResourceNotFound
+	// }
+
+	// activities, err := c.users.ReadUserActivities(ctx, memberID)
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	// challenge := Challenge{}
+	// if err := c.Read(ctx, challengeID, &challenge); err != nil {
+	// 	return nil, err
+	// }
+
+	// progress, err := challenge.Target.Evaluate(ctx, activities)
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	// return progress, nil
 
 	return NewResponse(progress)
-
 }

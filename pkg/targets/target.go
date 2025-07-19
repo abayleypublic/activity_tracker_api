@@ -1,3 +1,5 @@
+// I think this could be improved by using bytes more than composition
+
 package targets
 
 import (
