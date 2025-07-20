@@ -25,6 +25,11 @@ const (
 	PROD Environment = "prod"
 )
 
+type ListOptions struct {
+	Max  int64 `form:"max,default=10"`
+	Page int64 `form:"page,default=1"`
+}
+
 type Config struct {
 	Environment Environment
 	Database    *mongo.Database
@@ -101,27 +106,29 @@ func (a *API) Start() error {
 		})
 	})
 
-	// Challenges Routes
-	a.GET("/challenges", a.GetChallenges)          // public
-	a.POST("/challenges", a.PostChallenge)         // auth
-	a.GET("/challenges/:id", a.GetChallenge)       // public
-	a.DELETE("/challenges/:id", a.DeleteChallenge) // auth
-	// a.PATCH("/challenges/:id", a.PatchChallenge) // auth
+	// Activity routes
+	a.GET("/activities/:activityID", a.GetActivity)       // public
+	a.PATCH("/activities/:activityID", a.PatchActivity)   // valid user
+	a.DELETE("/activities/:activityID", a.DeleteActivity) // valid user
+
+	// Challenge Routes
+	a.GET("/challenges", a.GetChallenges)                            // public
+	a.POST("/challenges", a.PostChallenge)                           // auth
+	a.GET("/challenges/:id", a.GetChallenge)                         // public
+	a.DELETE("/challenges/:id", a.DeleteChallenge)                   // auth
+	a.PATCH("/challenges/:id", a.PatchChallenge)                     // auth
 	a.GET("/challenges/:id/members/:userID/progress", a.GetProgress) // public
 
 	// User routes
-	a.GET("/users", a.GetUsers)        // admin
-	a.GET("/users/:userID", a.GetUser) // auth
-	// a.PATCH("/users/:userID", a.PatchUser) // valid user
+	a.GET("/users", a.GetUsers)              // admin
+	a.GET("/users/:userID", a.GetUser)       // auth
+	a.PATCH("/users/:userID", a.PatchUser)   // valid user
 	a.DELETE("/users/:userID", a.DeleteUser) // valid user
 	a.PUT("/users/:userID", a.PutUser)       // valid user
 
 	// User activities routes
-	a.GET("/users/:userID/activities", a.GetUserActivities)       // public
-	a.POST("/users/:userID/activities", a.PostUserActivity)       // valid user
-	a.GET("/users/:userID/activities/:activityID", a.GetActivity) // public
-	// a.PATCH("/users/:userID/activities/:activityID", a.PatchUserActivity) // valid user
-	a.DELETE("/users/:userID/activities/:activityID", a.DeleteUserActivity) // valid user
+	a.POST("/users/:userID/activities", a.PostUserActivity) // valid user
+	a.GET("/users/:userID/activities", a.GetUserActivities) // public
 
 	// User challenge routes
 	a.PUT("/users/:userID/challenges/:id", a.SetChallengeMembership(true))     // valid user

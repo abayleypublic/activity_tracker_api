@@ -13,11 +13,27 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func (a *API) GetUsers(req *gin.Context) {
-	opts := users.NewListOptions()
+type PartialUser struct {
+	ID        service.ID `json:"id"`
+	FirstName string     `json:"firstName"`
+	LastName  string     `json:"lastName"`
+	Bio       string     `json:"bio"`
+}
 
-	users := []users.Detail{}
-	if err := a.users.List(req, opts, users); err != nil {
+func (a *API) GetUsers(req *gin.Context) {
+	rawOpts := ListOptions{}
+	if err := req.BindQuery(&rawOpts); err != nil {
+		log.Error().
+			Err(err).
+			Msg("error binding query parameters")
+	}
+
+	opts := users.NewListOptions().
+		SetLimit(rawOpts.Max).
+		SetSkip(rawOpts.Page - 1)
+
+	users := []PartialUser{}
+	if err := a.users.List(req, *opts, users); err != nil {
 		log.Error().
 			Err(err).
 			Msg("error listing users")
@@ -32,19 +48,35 @@ func (a *API) GetUsers(req *gin.Context) {
 }
 
 func (a *API) GetUser(req *gin.Context) {
-
-	id, ok := a.Params(req)["userID"]
-	if !ok {
-		return NewResponse(BadRequest("id not supplied", nil))
+	id := req.Param("userID")
+	if id == "" {
+		req.JSON(http.StatusBadRequest, ErrorResponse{
+			Cause: "user ID not supplied",
+		})
+		return
 	}
 
-	user, err := a.users.ReadUser(req.Context, service.ID(id))
-	if err != nil {
-		return NewResponse(NotFound(err.Error(), err))
+	user := PartialUser{}
+	if err := a.users.Get(req, service.ID(id), &user); err != nil {
+		log.Error().
+			Err(err).
+			Str("userID", id).
+			Msg("error getting user")
+
+		if errors.Is(err, users.ErrNotFound) {
+			req.JSON(http.StatusNotFound, ErrorResponse{
+				Cause: NotFound,
+			})
+			return
+		}
+
+		req.JSON(http.StatusInternalServerError, ErrorResponse{
+			Cause: InternalServer,
+		})
+		return
 	}
 
-	return NewResponse(user)
-
+	req.JSON(http.StatusOK, user)
 }
 
 // PatchUser updates an existing user with the given ID using a JSON merge patch.
@@ -53,59 +85,84 @@ func (a *API) GetUser(req *gin.Context) {
 // Returns a 404 Not Found error if the user with the given ID does not exist or if there is an error marshalling or unmarshalling the user.
 // Returns a 204 No Content response if the user is successfully updated.
 func (a *API) PatchUser(req *gin.Context) {
-
-	// Get user ID
-	id, ok := a.Params(req)["userID"]
-	if !ok {
-		return NewResponse(BadRequest("id not supplied", nil))
+	id := req.Param("userID")
+	if id == "" {
+		req.JSON(http.StatusBadRequest, ErrorResponse{
+			Cause: "user ID not supplied",
+		})
+		return
 	}
 
 	userID := service.ID(id)
 
-	// Get body & store as slice of bytes
-	bb, err := req.BodyBytes(true)
+	// Read body as bytes
+	bb, err := req.GetRawData()
 	if err != nil {
-		return NewResponse(BadRequest(err.Error(), err))
+		req.JSON(http.StatusBadRequest, ErrorResponse{
+			Cause: "error reading request body",
+		})
+		return
 	}
 
-	// Stored user
-	user := users.User{}
-	err = a.users.Read(req.Context, userID, &user)
-	if err != nil {
-		return NewResponse(NotFound(err.Error(), err))
+	// Get stored user
+	user := users.Detail{}
+	if err := a.users.Get(req, userID, &user); err != nil {
+		if errors.Is(err, users.ErrNotFound) {
+			req.JSON(http.StatusNotFound, ErrorResponse{
+				Cause: NotFound,
+			})
+			return
+		}
+		req.JSON(http.StatusInternalServerError, ErrorResponse{
+			Cause: InternalServer,
+		})
+		return
 	}
 
-	// Stored user as slice of bytes
+	// Marshal stored user to bytes
 	subb, err := json.Marshal(user)
 	if err != nil {
-		return NewResponse(UnprocessableEntity(err.Error(), err))
+		req.JSON(http.StatusUnprocessableEntity, ErrorResponse{
+			Cause: "error marshalling user",
+		})
+		return
 	}
 
-	// Decode requested patch
+	// Decode patch
 	patch, err := jsonpatch.DecodePatch(bb)
 	if err != nil {
-		return NewResponse(UnprocessableEntity("could not decode request", err))
+		req.JSON(http.StatusUnprocessableEntity, ErrorResponse{
+			Cause: "could not decode patch",
+		})
+		return
 	}
 
-	// Apply patch to stored user to get modified document
+	// Apply patch
 	modified, err := patch.Apply(subb)
 	if err != nil {
-		return NewResponse(UnprocessableEntity("could not apply patch", err))
+		req.JSON(http.StatusUnprocessableEntity, ErrorResponse{
+			Cause: "could not apply patch",
+		})
+		return
 	}
 
-	// Unmarshal modified document into user struct
-	user = users.User{}
-	if err = json.Unmarshal(modified, &user); err != nil {
-		return NewResponse(UnprocessableEntity("error unmarshalling user", err))
+	// Unmarshal modified user
+	if err := json.Unmarshal(modified, &user); err != nil {
+		req.JSON(http.StatusUnprocessableEntity, ErrorResponse{
+			Cause: "error unmarshalling user",
+		})
+		return
 	}
 
 	// Update user
-	if err = a.users.Update(req.Context, user); err != nil {
-		return NewResponse(InternalServer(err.Error(), err))
+	if err := a.users.Update(req, &user); err != nil {
+		req.JSON(http.StatusInternalServerError, ErrorResponse{
+			Cause: InternalServer,
+		})
+		return
 	}
 
-	return NewResponse(user)
-
+	req.JSON(http.StatusNoContent, nil)
 }
 
 func (a *API) DeleteUser(req *gin.Context) {
@@ -140,13 +197,15 @@ func (a *API) DeleteUser(req *gin.Context) {
 }
 
 func (a *API) PutUser(req *gin.Context) {
-
-	id, ok := a.Params(req)["userID"]
-	if !ok {
-		return NewResponse(BadRequest("id not supplied", nil))
+	id := req.Param("userID")
+	if id == "" {
+		req.JSON(http.StatusBadRequest, ErrorResponse{
+			Cause: "user ID not supplied",
+		})
+		return
 	}
 
-	user := users.User{}
+	user := users.Detail{}
 	if err := req.BindJSON(&user); err != nil {
 		req.JSON(http.StatusBadRequest, ErrorResponse{
 			Cause: "error binding user data",
@@ -155,21 +214,32 @@ func (a *API) PutUser(req *gin.Context) {
 	}
 
 	if user.ID != service.ID(id) {
-		return NewResponse(BadRequest("id in body does not match id in url", nil))
+		req.JSON(http.StatusBadRequest, ErrorResponse{
+			Cause: "user ID in request body does not match user ID in URL",
+		})
+		return
 	}
 
-	res, err := a.users.Create(req.Context, user)
-	if err != nil {
-		switch err {
-		case service.ErrResourceAlreadyExists:
-			return NewResponse(Conflict("user already exists", err))
-		default:
-			return NewResponse(InternalServer("error creating user", err))
+	if err := a.users.Create(req, &user); err != nil {
+		log.Error().
+			Err(err).
+			Str("userID", id).
+			Msg("error creating user")
+
+		if errors.Is(err, users.ErrAlreadyExists) {
+			req.JSON(http.StatusConflict, ErrorResponse{
+				Cause: "user already exists",
+			})
+			return
 		}
+
+		req.JSON(http.StatusInternalServerError, ErrorResponse{
+			Cause: InternalServer,
+		})
+		return
 	}
 
-	return NewResponseWithCode(res, http.StatusOK)
-
+	req.JSON(http.StatusCreated, user)
 }
 
 func (a *API) DownloadUserData(req *gin.Context) {

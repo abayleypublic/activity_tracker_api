@@ -5,6 +5,7 @@ package users
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/AustinBayley/activity_tracker_api/pkg/activities"
 	"github.com/AustinBayley/activity_tracker_api/pkg/challenges"
@@ -37,7 +38,20 @@ func New(
 	}
 }
 
-func (svc *Service) Get(ctx context.Context, id service.ID, user *User) error {
+func (svc *Service) Create(ctx context.Context, user *Detail) error {
+	if user.CreatedDate == nil {
+		now := time.Now()
+		user.CreatedDate = &now
+	}
+
+	if err := svc.users.Create(ctx, user); err != nil {
+		return fmt.Errorf("failed to create user: %w", err)
+	}
+
+	return nil
+}
+
+func (svc *Service) Get(ctx context.Context, id service.ID, user interface{}) error {
 	if err := svc.users.Get(ctx, id, user); err != nil {
 		return fmt.Errorf("failed to get user: %w", err)
 	}
@@ -46,13 +60,16 @@ func (svc *Service) Get(ctx context.Context, id service.ID, user *User) error {
 		User: &id,
 	}
 
-	cs := make([]challenges.Challenge, 0)
-	if err := svc.challenges.List(ctx, opts, &cs); err != nil {
-		return fmt.Errorf("failed to list challenges for user: %w", err)
-	}
+	// Only add challenges if the user is of type User
+	if u, ok := user.(*User); ok {
+		cs := make([]challenges.Challenge, 0)
+		if err := svc.challenges.List(ctx, opts, &cs); err != nil {
+			return fmt.Errorf("failed to list challenges for user: %w", err)
+		}
 
-	for _, c := range cs {
-		user.Challenges = append(user.Challenges, c.ID)
+		for _, c := range cs {
+			u.Challenges = append(u.Challenges, c.ID)
+		}
 	}
 
 	return nil
@@ -63,8 +80,8 @@ type ListOptions struct {
 	Skip  int64
 }
 
-func NewListOptions() ListOptions {
-	return ListOptions{}
+func NewListOptions() *ListOptions {
+	return &ListOptions{}
 }
 
 func (opts *ListOptions) SetLimit(limit int64) *ListOptions {
@@ -77,12 +94,20 @@ func (opts *ListOptions) SetSkip(skip int64) *ListOptions {
 	return opts
 }
 
-func (svc *Service) List(ctx context.Context, opts ListOptions, users []Detail) error {
+func (svc *Service) List(ctx context.Context, opts ListOptions, users interface{}) error {
 	los := NewDetailListOptions()
 	los = *los.SetLimit(opts.Limit).SetSkip(opts.Skip)
 
 	if err := svc.users.List(ctx, los, &users); err != nil {
 		return fmt.Errorf("failed to list users: %w", err)
+	}
+
+	return nil
+}
+
+func (svc *Service) Update(ctx context.Context, user *Detail) error {
+	if err := svc.users.Update(ctx, *user); err != nil {
+		return fmt.Errorf("failed to update user: %w", err)
 	}
 
 	return nil

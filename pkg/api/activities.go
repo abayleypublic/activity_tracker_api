@@ -47,117 +47,229 @@ func (a *API) GetActivity(req *gin.Context) {
 }
 
 func (a *API) PostUserActivity(req *gin.Context) {
-
-	id, ok := req.Params["userID"]
-	if !ok {
-		return NewResponse(BadRequest("id not supplied", nil))
+	id := req.Param("userID")
+	if id == "" {
+		req.JSON(http.StatusBadRequest, ErrorResponse{
+			Cause: "user ID not supplied",
+		})
+		return
 	}
 	userID := service.ID(id)
 
 	activity := activities.Activity{}
-	if err := req.Decode(&activity); err != nil {
-		return NewResponse(UnprocessableEntity("error decoding activity", err))
+	if err := req.BindJSON(&activity); err != nil {
+		log.Error().
+			Err(err).
+			Msg("error binding request body")
+
+		req.JSON(http.StatusBadRequest, ErrorResponse{
+			Cause: "invalid request body",
+		})
+		return
 	}
 	activity.ID = service.NewID()
 	activity.UserID = userID
 
-	res, err := a.users.CreateUserActivity(req.Context, activity)
+	err := a.activities.Create(req, &activity)
 	if err != nil {
-		return NewResponse(InternalServer(err.Error(), err))
+		log.Error().
+			Err(err).
+			Str("userID", string(userID)).
+			Msg("error creating activity")
+
+		req.JSON(http.StatusInternalServerError, ErrorResponse{
+			Cause: InternalServer,
+		})
+		return
 	}
 
-	return NewResponseWithCode(res, http.StatusCreated)
+	req.JSON(http.StatusCreated, activity)
 }
 
-func (a *API) PatchUserActivity(req *gin.Context) {
-	// Get user ID
-	id, ok := a.Params(req)["userID"]
-	if !ok {
-		return NewResponse(BadRequest("id not supplied", nil))
+func (a *API) PatchActivity(req *gin.Context) {
+	id := req.Param("activityID")
+	if id == "" {
+		req.JSON(http.StatusBadRequest, ErrorResponse{
+			Cause: "activity ID not supplied",
+		})
+		return
 	}
 
-	// Get activity ID
-	aid, ok := a.Params(req)["activityID"]
-	if !ok {
-		return NewResponse(BadRequest("activity id not supplied", nil))
-	}
+	aID := service.ID(id)
 
-	userID := service.ID(id)
-	activityID := service.ID(aid)
+	stored := activities.Activity{}
+	if err := a.activities.Get(req, aID, &stored); err != nil {
+		log.Error().
+			Err(err).
+			Str("activityID", id).
+			Msg("error getting activity")
 
-	// Get body & store as slice of bytes
-	bb, err := req.BodyBytes(true)
-	if err != nil {
-		return NewResponse(BadRequest(err.Error(), err))
-	}
+		if errors.Is(err, activities.ErrNotFound) {
+			req.JSON(http.StatusNotFound, ErrorResponse{
+				Cause: NotFound,
+			})
+			return
+		}
 
-	// Stored activity
-	sa, err := a.users.ReadUserActivity(req.Context, userID, activityID)
-	if err != nil {
-		return NewResponse(NotFound(err.Error(), err))
+		req.JSON(http.StatusInternalServerError, ErrorResponse{
+			Cause: InternalServer,
+		})
+		return
 	}
 
 	// Stored activity as slice of bytes
-	sabb, err := json.Marshal(sa)
+	sabb, err := json.Marshal(stored)
 	if err != nil {
-		return NewResponse(UnprocessableEntity("error marshalling stored activity", err))
+		log.Error().
+			Err(err).
+			Msg("error marshalling activity")
+
+		req.JSON(http.StatusInternalServerError, ErrorResponse{
+			Cause: InternalServer,
+		})
+		return
+	}
+
+	// Get body & store as slice of bytes
+	bb, err := req.GetRawData()
+	if err != nil {
+		req.JSON(http.StatusBadRequest, ErrorResponse{
+			Cause: "error reading request body",
+		})
+		return
 	}
 
 	// Decode requested patch
 	patch, err := jsonpatch.DecodePatch(bb)
 	if err != nil {
-		return NewResponse(UnprocessableEntity("could not decode request", err))
+		log.Error().
+			Err(err).
+			Msg("error decoding patch")
+
+		req.JSON(http.StatusUnprocessableEntity, ErrorResponse{
+			Cause: "could not decode patch",
+		})
+		return
 	}
 
 	// Apply patch to stored activity to get modified document
 	modified, err := patch.Apply(sabb)
 	if err != nil {
-		return NewResponse(UnprocessableEntity("could not apply patch", err))
+		log.Error().
+			Err(err).
+			Msg("error applying patch")
+
+		req.JSON(http.StatusUnprocessableEntity, ErrorResponse{
+			Cause: "could not apply patch",
+		})
+		return
 	}
 
 	// Unmarshal modified document into user struct
 	var activity activities.Activity
 	if err = json.Unmarshal(modified, &activity); err != nil {
-		return NewResponse(UnprocessableEntity("error unmarshalling activity", err))
+		log.Error().
+			Err(err).
+			Msg("error unmarshalling activity")
+
+		req.JSON(http.StatusUnprocessableEntity, ErrorResponse{
+			Cause: "error unmarshalling activity",
+		})
+		return
 	}
 
 	// Update activity
-	res, err := a.users.UpdateUserActivity(req.Context, userID, activity)
-	if err != nil {
-		return NewResponse(InternalServer(err.Error(), err))
+	if err = a.activities.Update(req, activity); err != nil {
+		log.Error().
+			Err(err).
+			Str("activityID", id).
+			Msg("error updating activity")
+
+		if errors.Is(err, activities.ErrNotFound) {
+			req.JSON(http.StatusNotFound, ErrorResponse{
+				Cause: NotFound,
+			})
+			return
+		}
+
+		req.JSON(http.StatusInternalServerError, ErrorResponse{
+			Cause: InternalServer,
+		})
+		return
 	}
 
-	return NewResponse(res)
+	req.JSON(http.StatusNoContent, nil)
 }
 
-func (a *API) DeleteUserActivity(req *gin.Context) {
-	id, ok := a.Params(req)["userID"]
-	if !ok {
-		return NewResponse(BadRequest("user id not supplied", nil))
+func (a *API) DeleteActivity(req *gin.Context) {
+	id := req.Param("activityID")
+	if id == "" {
+		req.JSON(http.StatusBadRequest, ErrorResponse{
+			Cause: "activity ID not supplied",
+		})
+		return
 	}
 
-	aid, ok := a.Params(req)["activityID"]
-	if !ok {
-		return NewResponse(BadRequest("activity id not supplied", nil))
+	aID := service.ID(id)
+
+	opts := activities.ActivityDeleteOpts{
+		ID: &aID,
 	}
 
-	if err := a.users.DeleteUserActivity(req.Context, service.ID(id), service.ID(aid)); err != nil {
-		return NewResponse(NotFound(err.Error(), err))
+	if err := a.activities.Delete(req, opts); err != nil {
+		log.Error().
+			Err(err).
+			Str("activityID", id).
+			Msg("error deleting activity")
+
+		if errors.Is(err, activities.ErrNotFound) {
+			req.JSON(http.StatusNotFound, ErrorResponse{
+				Cause: NotFound,
+			})
+			return
+		}
+
+		req.JSON(http.StatusInternalServerError, ErrorResponse{
+			Cause: InternalServer,
+		})
+		return
 	}
 
-	return NewResponseWithCode(nil, http.StatusNoContent)
+	req.JSON(http.StatusNoContent, nil)
 }
 
 func (a *API) GetUserActivities(req *gin.Context) {
-	id, ok := a.Params(req)["userID"]
-	if !ok {
-		return NewResponse(BadRequest("user id not supplied", nil))
+	id := req.Param("userID")
+	if id == "" {
+		req.JSON(http.StatusBadRequest, ErrorResponse{
+			Cause: "user ID not supplied",
+		})
+		return
 	}
 
-	as, err := a.users.ReadUserActivities(req.Context, service.ID(id))
-	if err != nil {
-		return NewResponse(err)
+	rawOpts := ListOptions{}
+	if err := req.BindQuery(&rawOpts); err != nil {
+		log.Error().
+			Err(err).
+			Msg("error binding query parameters")
 	}
 
-	return NewResponse(as)
+	opts := activities.NewListOptions().
+		SetLimit(rawOpts.Max).
+		SetSkip(rawOpts.Page - 1).
+		SetUser(service.ID(id))
+
+	activities := []activities.Activity{}
+	if err := a.activities.List(req, *opts, &activities); err != nil {
+		log.Error().
+			Err(err).
+			Msg("error listing user activities")
+
+		req.JSON(http.StatusInternalServerError, ErrorResponse{
+			Cause: InternalServer,
+		})
+		return
+	}
+
+	req.JSON(http.StatusOK, activities)
 }

@@ -70,21 +70,23 @@ func (svc *Service) Create(ctx context.Context, challenge *Challenge) error {
 	return nil
 }
 
-func (svc *Service) Get(ctx context.Context, id service.ID, challenge *Challenge) error {
+func (svc *Service) Get(ctx context.Context, id service.ID, challenge interface{}) error {
 	if err := svc.challenges.Get(ctx, id, challenge); err != nil {
 		return fmt.Errorf("failed to get challenge: %w", err)
 	}
 
-	memsOpts := MembershipListOptions{
-		Challenge: &id,
-	}
-	mems := make([]Membership, 0)
-	if err := svc.memberships.List(ctx, memsOpts, &mems); err != nil {
-		return fmt.Errorf("failed to get memberships for challenge %s: %w", id.ConvertID(), err)
-	}
+	if ch, ok := challenge.(*Challenge); ok {
+		memsOpts := MembershipListOptions{
+			Challenge: &id,
+		}
+		mems := make([]Membership, 0)
+		if err := svc.memberships.List(ctx, memsOpts, &mems); err != nil {
+			return fmt.Errorf("failed to get memberships for challenge %s: %w", id.ConvertID(), err)
+		}
 
-	for _, m := range mems {
-		challenge.Members = append(challenge.Members, m.User)
+		for _, m := range mems {
+			ch.Members = append(ch.Members, m.User)
+		}
 	}
 
 	return nil
@@ -97,8 +99,8 @@ type ListOptions struct {
 	User *service.ID
 }
 
-func NewListOptions() ListOptions {
-	return ListOptions{}
+func NewListOptions() *ListOptions {
+	return &ListOptions{}
 }
 
 func (opts *ListOptions) SetLimit(limit int64) *ListOptions {
@@ -116,7 +118,7 @@ func (opts *ListOptions) SetUser(id service.ID) *ListOptions {
 	return opts
 }
 
-func (svc *Service) List(ctx context.Context, opts ListOptions, challenges *[]Challenge) error {
+func (svc *Service) List(ctx context.Context, opts ListOptions, challenges interface{}) error {
 	mems := make([]Membership, 0, opts.Limit)
 
 	memsOpts := MembershipListOptions{
@@ -154,8 +156,7 @@ type Operation interface {
 }
 
 type SetDetailOperation struct {
-	ChallengeID service.ID
-	Detail      Detail
+	Detail Detail
 }
 
 func (o SetDetailOperation) Execute(ctx context.Context, details *Details, _ *Memberships) error {

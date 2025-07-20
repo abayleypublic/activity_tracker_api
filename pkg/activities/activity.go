@@ -103,8 +103,8 @@ type ListOptions struct {
 	User *service.ID
 }
 
-func NewListOptions() ListOptions {
-	return ListOptions{}
+func NewListOptions() *ListOptions {
+	return &ListOptions{}
 }
 
 func (opts *ListOptions) SetLimit(limit int64) *ListOptions {
@@ -123,7 +123,7 @@ func (opts *ListOptions) SetUser(id service.ID) *ListOptions {
 }
 
 // List retrieves activities based on the given criteria.
-func (svc *Service) List(ctx context.Context, opts ListOptions, activities []Activity) error {
+func (svc *Service) List(ctx context.Context, opts ListOptions, activities *[]Activity) error {
 	options := options.Find()
 
 	if opts.Limit > 0 {
