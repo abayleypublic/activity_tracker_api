@@ -1,7 +1,7 @@
 package service
 
 import (
-	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 // ID is a type alias for string, intended to represent a UUID.
@@ -14,5 +14,5 @@ func (id ID) ConvertID() string {
 }
 
 func NewID() ID {
-	return ID(primitive.NewObjectID().Hex())
+	return ID(bson.NewObjectID().Hex())
 }

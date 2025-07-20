@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/AustinBayley/activity_tracker_api/pkg/service"
-	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
@@ -17,6 +17,7 @@ type Detail struct {
 	ID          service.ID `json:"id,omitempty" bson:"_id,omitempty"`
 	FirstName   string     `json:"firstName,omitempty" bson:"firstName"`
 	LastName    string     `json:"lastName,omitempty" bson:"lastName"`
+	Email       string     `json:"email,omitempty" bson:"email"`
 	CreatedDate *time.Time `json:"createdDate" bson:"createdDate"`
 	Bio         string     `json:"bio,omitempty" bson:"bio"`
 }
@@ -39,18 +40,19 @@ func (svc *Details) Setup(ctx context.Context) error {
 }
 
 // Create adds a new user to the database.
-func (svc *Details) Create(ctx context.Context, user *Detail) error {
+func (svc *Details) Create(ctx context.Context, user *Detail) (service.ID, error) {
+	user.ID = service.NewID()
+	now := time.Now()
+	user.CreatedDate = &now
 	res, err := svc.InsertOne(ctx, user)
 	if err != nil {
 		if mongo.IsDuplicateKeyError(err) {
-			return ErrAlreadyExists
+			return "", ErrAlreadyExists
 		}
-		return fmt.Errorf("%w: %w", ErrUnknown, err)
+		return "", fmt.Errorf("%w: %w", ErrUnknown, err)
 	}
 
-	user.ID = service.ID(res.InsertedID.(string))
-
-	return nil
+	return service.ID(res.InsertedID.(string)), nil
 }
 
 // Get retrieves a user by its ID from the database.
@@ -71,10 +73,12 @@ func (svc *Details) Get(ctx context.Context, id service.ID, user interface{}) er
 type DetailListOptions struct {
 	Limit int64
 	Skip  int64
+
+	Email string
 }
 
-func NewDetailListOptions() DetailListOptions {
-	return DetailListOptions{}
+func NewDetailListOptions() *DetailListOptions {
+	return &DetailListOptions{}
 }
 
 func (opts *DetailListOptions) SetLimit(limit int64) *DetailListOptions {
@@ -84,6 +88,11 @@ func (opts *DetailListOptions) SetLimit(limit int64) *DetailListOptions {
 
 func (opts *DetailListOptions) SetSkip(skip int64) *DetailListOptions {
 	opts.Skip = skip
+	return opts
+}
+
+func (opts *DetailListOptions) SetEmail(email string) *DetailListOptions {
+	opts.Email = email
 	return opts
 }
 
@@ -99,7 +108,12 @@ func (svc *Details) List(ctx context.Context, opts DetailListOptions, users inte
 		options = options.SetSkip(opts.Skip)
 	}
 
-	cursor, err := svc.Find(ctx, bson.D{}, options)
+	filter := bson.D{}
+	if opts.Email != "" {
+		filter = append(filter, bson.E{Key: "email", Value: opts.Email})
+	}
+
+	cursor, err := svc.Find(ctx, filter, options)
 	if err != nil {
 		return fmt.Errorf("%w: %w", ErrUnknown, err)
 	}

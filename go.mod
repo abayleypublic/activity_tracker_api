@@ -9,7 +9,6 @@ require (
 	github.com/evanphx/json-patch/v5 v5.9.11
 	github.com/rs/zerolog v1.34.0
 	github.com/uber/h3-go/v4 v4.3.0
-	go.mongodb.org/mongo-driver v1.17.4
 	go.mongodb.org/mongo-driver/v2 v2.2.2
 )
 

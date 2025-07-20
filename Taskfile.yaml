@@ -2,6 +2,15 @@ version: "3"
 
 tasks:
   # ==========
+  # Base
+  # ==========
+
+  start:
+    desc: Start the API and MongoDB
+    cmds:
+      - docker compose up --build
+
+  # ==========
   # Terraform
   # ==========
 

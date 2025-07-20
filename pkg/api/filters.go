@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/AustinBayley/activity_tracker_api/pkg/service"
+	"github.com/AustinBayley/activity_tracker_api/pkg/users"
 	"github.com/gin-gonic/gin"
 )
 
@@ -24,9 +25,14 @@ func (a *API) ActorFilter(req *gin.Context) {
 	email := req.GetHeader("X-Auth-Request-Email")
 	groups := req.GetHeader("X-Auth-Request-Groups")
 
+	// We need to get the ID of the user but don't want to do anything with an error
+	// as some routes do not require a user to be authenticated.
+	user := users.Detail{}
+	_ = a.users.GetByEmail(req, email, &user)
+
 	req.Set(UserCtxKey, RequestContext{
-		UserID: service.ID(email),
-		Admin:  strings.Contains(groups, a.adminGroup),
+		UserID: user.ID,
+		Admin:  strings.Contains(groups, a.adminGroup) && user.ID != "",
 	})
 
 	req.Next()

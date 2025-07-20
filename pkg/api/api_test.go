@@ -1,42 +1,43 @@
-package main
+package api_test
 
 import (
 	"context"
+	"net/http/httptest"
+	"os"
+	"testing"
 
 	"github.com/AustinBayley/activity_tracker_api/pkg/activities"
 	"github.com/AustinBayley/activity_tracker_api/pkg/api"
 	"github.com/AustinBayley/activity_tracker_api/pkg/challenges"
 	"github.com/AustinBayley/activity_tracker_api/pkg/users"
-	"github.com/kelseyhightower/envconfig"
+	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
-type Config struct {
-	Environment  api.Environment `envconfig:"ENVIRONMENT" default:"dev"`
-	Port         int             `envconfig:"PORT" default:"8080"`
-	MongoURI     string          `envconfig:"MONGODB_URI" required:"true"`
-	DatabaseName string          `envconfig:"DATABASE_NAME" default:"activities"`
-	AdminGroup   string          `envconfig:"ADMIN_GROUP" default:"activity_admin"`
-}
+const (
+	AdminGroup = "activity_admin"
+)
 
-func main() {
-	var cfg Config
-	if err := envconfig.Process("", &cfg); err != nil {
-		log.Fatal().
-			Err(err).
-			Msg("failed to process environment variables")
-	}
+var (
+	API        *api.API
+	Users      *users.Service
+	Challenges *challenges.Service
+	Activities *activities.Service
+)
 
-	client, err := mongo.Connect(options.Client().ApplyURI(cfg.MongoURI))
+func TestMain(m *testing.M) {
+	gin.SetMode(gin.TestMode)
+
+	client, err := mongo.Connect(options.Client().ApplyURI("mongodb://localhost:27017"))
 	if err != nil {
 		log.Fatal().
 			Err(err).
 			Msg("failed to connect to MongoDB")
 	}
 
-	db := client.Database(cfg.DatabaseName)
+	db := client.Database("activity_tracker_test")
 
 	acts := activities.New(db.Collection("activities"))
 	cds := challenges.NewDetails(db.Collection("challenges"))
@@ -70,19 +71,40 @@ func main() {
 			Msg("failed to setup users service")
 	}
 
-	err = api.NewAPI(api.NewConfig(
-		cfg.Environment,
+	Users = us
+	Challenges = cs
+	Activities = acts
+
+	API = api.NewAPI(api.NewConfig(
+		api.STG,
 		db,
-		cfg.Port,
-		cfg.AdminGroup,
+		80,
+		AdminGroup,
 		acts,
 		cs,
 		us,
-	)).Start()
+	))
 
-	if err != nil {
-		log.Fatal().
+	// Setup code if needed
+	code := m.Run()
+
+	if err := db.Drop(ctx); err != nil {
+		log.Error().
 			Err(err).
-			Msg("API failure")
+			Msg("failed to drop test database")
 	}
+
+	// Teardown code if needed
+	os.Exit(code)
+}
+
+func TestHealth(t *testing.T) {
+	ctx := gin.CreateTestContextOnly(httptest.NewRecorder(), API.Engine)
+	API.HealthCheck(ctx)
+
+	if ctx.Writer.Status() != 200 {
+		t.Errorf("expected status 200, got %d", ctx.Writer.Status())
+	}
+
+	t.Log("health check passed successfully")
 }

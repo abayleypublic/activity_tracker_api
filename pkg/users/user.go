@@ -45,17 +45,18 @@ func (svc *Service) Setup(ctx context.Context) error {
 	return nil
 }
 
-func (svc *Service) Create(ctx context.Context, user *Detail) error {
+func (svc *Service) Create(ctx context.Context, user *Detail) (service.ID, error) {
 	if user.CreatedDate == nil {
 		now := time.Now()
 		user.CreatedDate = &now
 	}
 
-	if err := svc.users.Create(ctx, user); err != nil {
-		return fmt.Errorf("failed to create user: %w", err)
+	id, err := svc.users.Create(ctx, user)
+	if err != nil {
+		return "", fmt.Errorf("failed to create user: %w", err)
 	}
 
-	return nil
+	return id, nil
 }
 
 func (svc *Service) Get(ctx context.Context, id service.ID, user interface{}) error {
@@ -82,6 +83,25 @@ func (svc *Service) Get(ctx context.Context, id service.ID, user interface{}) er
 	return nil
 }
 
+func (svc *Service) GetByEmail(ctx context.Context, email string, user interface{}) error {
+	opts := NewDetailListOptions().SetEmail(email)
+
+	users := make([]Detail, 0)
+	if err := svc.users.List(ctx, *opts, users); err != nil {
+		return fmt.Errorf("failed to get user by email: %w", err)
+	}
+
+	if len(users) == 0 {
+		return fmt.Errorf("user with email %s not found", email)
+	}
+
+	if len(users) > 1 {
+		return fmt.Errorf("multiple users found with email %s", email)
+	}
+
+	return nil
+}
+
 type ListOptions struct {
 	Limit int64
 	Skip  int64
@@ -102,10 +122,8 @@ func (opts *ListOptions) SetSkip(skip int64) *ListOptions {
 }
 
 func (svc *Service) List(ctx context.Context, opts ListOptions, users interface{}) error {
-	los := NewDetailListOptions()
-	los = *los.SetLimit(opts.Limit).SetSkip(opts.Skip)
-
-	if err := svc.users.List(ctx, los, &users); err != nil {
+	los := NewDetailListOptions().SetLimit(opts.Limit).SetSkip(opts.Skip)
+	if err := svc.users.List(ctx, *los, &users); err != nil {
 		return fmt.Errorf("failed to list users: %w", err)
 	}
 
@@ -141,5 +159,4 @@ func (svc *Service) Delete(ctx context.Context, id service.ID) error {
 	}
 
 	return nil
-
 }

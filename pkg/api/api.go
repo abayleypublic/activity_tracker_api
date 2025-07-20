@@ -46,6 +46,7 @@ func NewConfig(
 	environment Environment,
 	database *mongo.Database,
 	port int,
+	adminGroup string,
 
 	activities *activities.Service,
 	challenges *challenges.Service,
@@ -55,6 +56,7 @@ func NewConfig(
 		Environment: environment,
 		Database:    database,
 		Port:        port,
+		AdminGroup:  adminGroup,
 		activities:  activities,
 		challenges:  challenges,
 		users:       users,
@@ -91,24 +93,7 @@ func (a *API) Start() error {
 	}
 
 	// Get health of service
-	a.GET("/health", func(req *gin.Context) {
-		// Test Mongodb connection
-		err := a.db.Client().Ping(req, nil)
-		if err != nil {
-			log.Error().
-				Err(err).
-				Msg("failed to ping database")
-
-			req.JSON(http.StatusServiceUnavailable, ErrorResponse{
-				Cause: "database connection failed",
-			})
-			return
-		}
-
-		req.JSON(http.StatusOK, gin.H{
-			"status": "ok",
-		})
-	})
+	a.GET("/health", a.HealthCheck)
 
 	// Activity routes
 	a.GET("/activities/:activityID", a.GetActivity)       // public
@@ -152,7 +137,11 @@ func (a *API) Start() error {
 	}()
 
 	a.Use(gin.Recovery())
-	a.Use(gin.Logger())
+	a.Use(gin.LoggerWithConfig(gin.LoggerConfig{
+		SkipPaths: []string{
+			"/health",
+		},
+	}))
 	a.Use(a.ActorFilter)
 
 	srv := &http.Server{
@@ -166,11 +155,12 @@ func (a *API) Start() error {
 				Err(err).
 				Msg("failed to start server")
 		}
-	}()
 
-	log.Info().
-		Str("address", srv.Addr).
-		Msg("👋  server listening")
+		log.Info().
+			Str("address", srv.Addr).
+			Msg("👋  server listening")
+
+	}()
 
 	done := make(chan os.Signal, 1)
 	signal.Notify(done, syscall.SIGINT, syscall.SIGTERM)
@@ -192,4 +182,23 @@ func (a *API) Start() error {
 		Msg("👋  server shutdown")
 
 	return nil
+}
+
+func (a *API) HealthCheck(req *gin.Context) {
+	// Test Mongodb connection
+	err := a.db.Client().Ping(req, nil)
+	if err != nil {
+		log.Error().
+			Err(err).
+			Msg("failed to ping database")
+
+		req.JSON(http.StatusServiceUnavailable, ErrorResponse{
+			Cause: "database connection failed",
+		})
+		return
+	}
+
+	req.JSON(http.StatusOK, gin.H{
+		"status": "ok",
+	})
 }

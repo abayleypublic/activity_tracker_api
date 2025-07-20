@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/AustinBayley/activity_tracker_api/pkg/service"
-	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
@@ -89,7 +89,7 @@ func (svc *Service) Create(ctx context.Context, activity *Activity) error {
 }
 
 // Get retrieves an activity by its ID from the database.
-func (svc *Service) Get(ctx context.Context, id service.ID, activity *Activity) error {
+func (svc *Service) Get(ctx context.Context, id service.ID, activity interface{}) error {
 	if err := svc.
 		FindOne(ctx, bson.D{{Key: "_id", Value: id.ConvertID()}}).
 		Decode(activity); err != nil {
@@ -130,7 +130,7 @@ func (opts *ListOptions) SetUser(id service.ID) *ListOptions {
 }
 
 // List retrieves activities based on the given criteria.
-func (svc *Service) List(ctx context.Context, opts ListOptions, activities *[]Activity) error {
+func (svc *Service) List(ctx context.Context, opts ListOptions, activities interface{}) error {
 	options := options.Find()
 
 	if opts.Limit > 0 {

@@ -220,7 +220,8 @@ func (a *API) PutUser(req *gin.Context) {
 		return
 	}
 
-	if err := a.users.Create(req, &user); err != nil {
+	uID, err := a.users.Create(req, &user)
+	if err != nil {
 		log.Error().
 			Err(err).
 			Str("userID", id).
@@ -238,6 +239,7 @@ func (a *API) PutUser(req *gin.Context) {
 		})
 		return
 	}
+	user.ID = uID
 
 	req.JSON(http.StatusCreated, user)
 }
