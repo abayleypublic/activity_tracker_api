@@ -38,6 +38,9 @@ func NewDetails(c *mongo.Collection) *Details {
 }
 
 func (svc *Details) Setup(ctx context.Context) error {
+	if err := svc.Database().CreateCollection(ctx, svc.Name()); err != nil {
+		return fmt.Errorf("failed to create challenge detail collection: %w", err)
+	}
 	return nil
 }
 

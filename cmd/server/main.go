@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+
 	"github.com/AustinBayley/activity_tracker_api/pkg/activities"
 	"github.com/AustinBayley/activity_tracker_api/pkg/api"
 	"github.com/AustinBayley/activity_tracker_api/pkg/challenges"
@@ -48,6 +50,25 @@ func main() {
 		cs,
 		acts,
 	)
+
+	ctx := context.Background()
+	if err := cs.Setup(ctx); err != nil {
+		log.Fatal().
+			Err(err).
+			Msg("failed to setup challenges service")
+	}
+
+	if err := acts.Setup(ctx); err != nil {
+		log.Fatal().
+			Err(err).
+			Msg("failed to setup activities service")
+	}
+
+	if err := us.Setup(ctx); err != nil {
+		log.Fatal().
+			Err(err).
+			Msg("failed to setup users service")
+	}
 
 	err = api.NewAPI(api.NewConfig(
 		cfg.Environment,

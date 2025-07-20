@@ -31,6 +31,13 @@ func NewDetails(c *mongo.Collection) *Details {
 	return &Details{c}
 }
 
+func (svc *Details) Setup(ctx context.Context) error {
+	if err := svc.Database().CreateCollection(ctx, svc.Name()); err != nil {
+		return fmt.Errorf("failed to create user detail collection: %w", err)
+	}
+	return nil
+}
+
 // Create adds a new user to the database.
 func (svc *Details) Create(ctx context.Context, user *Detail) error {
 	res, err := svc.InsertOne(ctx, user)

@@ -38,6 +38,13 @@ func New(
 	}
 }
 
+func (svc *Service) Setup(ctx context.Context) error {
+	if err := svc.users.Setup(ctx); err != nil {
+		return fmt.Errorf("failed to setup users: %w", err)
+	}
+	return nil
+}
+
 func (svc *Service) Create(ctx context.Context, user *Detail) error {
 	if user.CreatedDate == nil {
 		now := time.Now()

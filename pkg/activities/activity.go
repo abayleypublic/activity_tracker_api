@@ -66,6 +66,13 @@ func New(c *mongo.Collection) *Service {
 	return &Service{c}
 }
 
+func (svc *Service) Setup(ctx context.Context) error {
+	if err := svc.Database().CreateCollection(ctx, svc.Name()); err != nil {
+		return fmt.Errorf("failed to create activity collection: %w", err)
+	}
+	return nil
+}
+
 // Create adds a new activity to the database.
 func (svc *Service) Create(ctx context.Context, activity *Activity) error {
 	res, err := svc.InsertOne(ctx, activity)

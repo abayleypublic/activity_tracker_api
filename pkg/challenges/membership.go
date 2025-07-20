@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/AustinBayley/activity_tracker_api/pkg/service"
+	"github.com/rs/zerolog/log"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
@@ -29,6 +30,23 @@ func NewMemberships(c *mongo.Collection) *Memberships {
 }
 
 func (svc *Memberships) Setup(ctx context.Context) error {
+	if err := svc.Database().CreateCollection(ctx, svc.Name()); err != nil {
+		return fmt.Errorf("failed to create challenge members collection: %w", err)
+	}
+
+	_, err := svc.Indexes().CreateMany(ctx, []mongo.IndexModel{
+		{
+			Keys:    bson.D{{Key: "challenge", Value: 1}, {Key: "user", Value: 1}},
+			Options: options.Index().SetUnique(true).SetName("challenge_user_unique_index"),
+		},
+	})
+
+	if err != nil {
+		log.Error().
+			Err(err).
+			Msg("failed to create unique index for challenge members")
+	}
+
 	return nil
 }
 
