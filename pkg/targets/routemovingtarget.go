@@ -54,7 +54,6 @@ type RouteMovingTarget struct {
 }
 
 func (t *RouteMovingTarget) MarshalBSON() ([]byte, error) {
-
 	type RawRouteMovingTarget RouteMovingTarget
 
 	if len(t.Route.Waypoints) < 2 {
@@ -78,7 +77,6 @@ func (t *RouteMovingTarget) Type() TargetType {
 }
 
 func (t *RouteMovingTarget) Evaluate(ctx context.Context, acts []activities.Activity) (Progress, error) {
-
 	// Distance is the distance travelled by the user
 	var distance float64 = 0
 	for _, act := range acts {

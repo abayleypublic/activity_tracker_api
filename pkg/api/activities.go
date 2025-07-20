@@ -20,7 +20,6 @@ func (a *API) GetActivity(req *gin.Context) {
 		})
 		return
 	}
-
 	activityID := service.ID(aid)
 
 	activity := activities.Activity{}
@@ -70,7 +69,7 @@ func (a *API) PostUserActivity(req *gin.Context) {
 	activity.ID = service.NewID()
 	activity.UserID = userID
 
-	err := a.activities.Create(req, &activity)
+	oid, err := a.activities.Create(req, &activity)
 	if err != nil {
 		log.Error().
 			Err(err).
@@ -82,6 +81,7 @@ func (a *API) PostUserActivity(req *gin.Context) {
 		})
 		return
 	}
+	activity.ID = oid
 
 	req.JSON(http.StatusCreated, activity)
 }
@@ -94,7 +94,6 @@ func (a *API) PatchActivity(req *gin.Context) {
 		})
 		return
 	}
-
 	aID := service.ID(id)
 
 	stored := activities.Activity{}
@@ -209,7 +208,6 @@ func (a *API) DeleteActivity(req *gin.Context) {
 		})
 		return
 	}
-
 	aID := service.ID(id)
 
 	opts := activities.ActivityDeleteOpts{

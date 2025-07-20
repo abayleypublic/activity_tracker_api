@@ -113,7 +113,7 @@ func (a *API) Start() error {
 	a.GET("/users/:userID", a.GetUser)       // auth
 	a.PATCH("/users/:userID", a.PatchUser)   // valid user
 	a.DELETE("/users/:userID", a.DeleteUser) // valid user
-	a.PUT("/users/:userID", a.PutUser)       // valid user
+	a.POST("/users", a.PostUser)             // valid user
 
 	// User activities routes
 	a.POST("/users/:userID/activities", a.PostUserActivity) // valid user

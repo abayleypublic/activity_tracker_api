@@ -88,7 +88,8 @@ func (a *API) PostChallenge(req *gin.Context) {
 	}
 	challenge.ID = service.NewID()
 
-	if err := a.challenges.Create(req, &challenge); err != nil {
+	cID, err := a.challenges.Create(req, &challenge)
+	if err != nil {
 		log.Error().
 			Err(err).
 			Msg("error creating challenge")
@@ -98,6 +99,7 @@ func (a *API) PostChallenge(req *gin.Context) {
 		})
 		return
 	}
+	challenge.ID = cID
 
 	req.JSON(http.StatusCreated, challenge)
 }

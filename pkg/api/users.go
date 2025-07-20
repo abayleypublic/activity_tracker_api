@@ -196,15 +196,7 @@ func (a *API) DeleteUser(req *gin.Context) {
 	req.JSON(http.StatusNoContent, nil)
 }
 
-func (a *API) PutUser(req *gin.Context) {
-	id := req.Param("userID")
-	if id == "" {
-		req.JSON(http.StatusBadRequest, ErrorResponse{
-			Cause: "user ID not supplied",
-		})
-		return
-	}
-
+func (a *API) PostUser(req *gin.Context) {
 	user := users.Detail{}
 	if err := req.BindJSON(&user); err != nil {
 		req.JSON(http.StatusBadRequest, ErrorResponse{
@@ -212,19 +204,28 @@ func (a *API) PutUser(req *gin.Context) {
 		})
 		return
 	}
+	user.ID = service.NewID()
 
-	if user.ID != service.ID(id) {
-		req.JSON(http.StatusBadRequest, ErrorResponse{
-			Cause: "user ID in request body does not match user ID in URL",
+	actor, ok := GetActorContext(req)
+	if !ok {
+		req.JSON(http.StatusUnauthorized, ErrorResponse{
+			Cause: NotAuthorised,
 		})
 		return
 	}
 
-	uID, err := a.users.Create(req, &user)
+	if user.Email != actor.Email && !actor.Admin {
+		req.JSON(http.StatusBadRequest, ErrorResponse{
+			Cause: "email does not match authenticated user",
+		})
+		return
+	}
+
+	oID, err := a.users.Create(req, &user)
 	if err != nil {
 		log.Error().
 			Err(err).
-			Str("userID", id).
+			Str("email", user.Email).
 			Msg("error creating user")
 
 		if errors.Is(err, users.ErrAlreadyExists) {
@@ -239,7 +240,7 @@ func (a *API) PutUser(req *gin.Context) {
 		})
 		return
 	}
-	user.ID = uID
+	user.ID = oID
 
 	req.JSON(http.StatusCreated, user)
 }

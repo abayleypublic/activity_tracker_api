@@ -42,9 +42,9 @@ func (svc *Service) Setup(ctx context.Context) error {
 }
 
 // TODO - fix and make sure this is done as a transaction
-func (svc *Service) Create(ctx context.Context, challenge *Challenge) error {
+func (svc *Service) Create(ctx context.Context, challenge *Challenge) (service.ID, error) {
 	if len(challenge.Members) == 0 {
-		return fmt.Errorf("%w: challenge must have at least one member", ErrInvalid)
+		return "", fmt.Errorf("%w: challenge must have at least one member", ErrInvalid)
 	}
 
 	if challenge.CreatedDate == nil {
@@ -52,8 +52,9 @@ func (svc *Service) Create(ctx context.Context, challenge *Challenge) error {
 		challenge.CreatedDate = &now
 	}
 
-	if err := svc.challenges.Create(ctx, &challenge.Detail); err != nil {
-		return fmt.Errorf("failed to create challenge: %w", err)
+	cID, err := svc.challenges.Create(ctx, &challenge.Detail)
+	if err != nil {
+		return "", fmt.Errorf("failed to create challenge: %w", err)
 	}
 
 	for _, userID := range challenge.Members {
@@ -63,11 +64,11 @@ func (svc *Service) Create(ctx context.Context, challenge *Challenge) error {
 			Created:   challenge.CreatedDate,
 		}
 		if err := svc.memberships.Create(ctx, &membership); err != nil {
-			return fmt.Errorf("failed to create memberships for challenge %s: %w", challenge.ID.ConvertID(), err)
+			return "", fmt.Errorf("failed to create memberships for challenge %s: %w", challenge.ID.ConvertID(), err)
 		}
 	}
 
-	return nil
+	return cID, nil
 }
 
 func (svc *Service) Get(ctx context.Context, id service.ID, challenge interface{}) error {

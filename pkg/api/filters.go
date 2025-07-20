@@ -17,6 +17,7 @@ const (
 type RequestContext struct {
 	UserID service.ID `json:"userID"`
 	Admin  bool       `json:"admin"`
+	Email  string     `json:"email"`
 }
 
 // ActorFilter updates the context with details of the user making the request.
@@ -24,7 +25,9 @@ func (a *API) ActorFilter(req *gin.Context) {
 	email := req.GetHeader("X-Auth-Request-Email")
 	groups := req.GetHeader("X-Auth-Request-Groups")
 
-	req.Set(UserCtxKey, RequestContext{})
+	req.Set(UserCtxKey, RequestContext{
+		Email: email,
+	})
 
 	if email == "" {
 		req.Next()
@@ -43,6 +46,7 @@ func (a *API) ActorFilter(req *gin.Context) {
 	req.Set(UserCtxKey, RequestContext{
 		UserID: user.ID,
 		Admin:  strings.Contains(groups, a.adminGroup) && user.ID != "",
+		Email:  email,
 	})
 
 	req.Next()

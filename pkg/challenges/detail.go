@@ -45,18 +45,18 @@ func (svc *Details) Setup(ctx context.Context) error {
 }
 
 // Create adds a new challenge to the database.
-func (svc *Details) Create(ctx context.Context, challenge *Detail) error {
-	res, err := svc.InsertOne(ctx, challenge)
+func (svc *Details) Create(ctx context.Context, challenge *Detail) (service.ID, error) {
+	challenge.ID = service.NewID()
+	now := time.Now()
+	challenge.CreatedDate = &now
+	_, err := svc.InsertOne(ctx, challenge)
 	if err != nil {
 		if mongo.IsDuplicateKeyError(err) {
-			return ErrAlreadyExists
+			return "", ErrAlreadyExists
 		}
-		return fmt.Errorf("%w: %w", ErrUnknown, err)
+		return "", fmt.Errorf("%w: %w", ErrUnknown, err)
 	}
-
-	challenge.ID = service.ID(res.InsertedID.(string))
-
-	return nil
+	return challenge.ID, nil
 }
 
 // Get retrieves a challenge by its ID from the database.

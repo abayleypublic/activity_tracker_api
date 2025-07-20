@@ -52,6 +52,8 @@ func (svc *Memberships) Setup(ctx context.Context) error {
 
 // Create adds a new membership to the database.
 func (svc *Memberships) Create(ctx context.Context, membership *Membership) error {
+	now := time.Now()
+	membership.Created = &now
 	_, err := svc.InsertOne(ctx, membership)
 	if err != nil {
 		if mongo.IsDuplicateKeyError(err) {

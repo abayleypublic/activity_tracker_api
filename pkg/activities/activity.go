@@ -74,18 +74,19 @@ func (svc *Service) Setup(ctx context.Context) error {
 }
 
 // Create adds a new activity to the database.
-func (svc *Service) Create(ctx context.Context, activity *Activity) error {
+func (svc *Service) Create(ctx context.Context, activity *Activity) (service.ID, error) {
+	activity.ID = service.NewID()
+	now := time.Now()
+	activity.CreatedDate = &now
 	res, err := svc.InsertOne(ctx, activity)
 	if err != nil {
 		if mongo.IsDuplicateKeyError(err) {
-			return ErrAlreadyExists
+			return "", ErrAlreadyExists
 		}
-		return fmt.Errorf("%w: %w", ErrUnknown, err)
+		return "", fmt.Errorf("%w: %w", ErrUnknown, err)
 	}
 
-	activity.ID = service.ID(res.InsertedID.(string))
-
-	return nil
+	return service.ID(res.InsertedID.(string)), nil
 }
 
 // Get retrieves an activity by its ID from the database.
