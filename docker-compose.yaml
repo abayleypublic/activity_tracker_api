@@ -8,11 +8,9 @@ services:
       - .env
     ports:
       - "8000:80"
-    volumes:
-      - $HOME/.config/gcloud/:/config:ro
   mongo:
     container_name: activity_db
-    image: mongo
+    image: mongo:8.0.11
     ports:
       - "27017:27017"
     volumes:

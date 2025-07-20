@@ -86,6 +86,10 @@ func NewAPI(cfg Config) *API {
 }
 
 func (a *API) Start() error {
+	if a.env != DEV {
+		gin.SetMode(gin.ReleaseMode)
+	}
+
 	// Get health of service
 	a.GET("/health", func(req *gin.Context) {
 		// Test Mongodb connection
