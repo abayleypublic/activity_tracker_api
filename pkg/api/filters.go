@@ -3,7 +3,6 @@
 package api
 
 import (
-	"fmt"
 	"net/http"
 	"strings"
 
@@ -58,10 +57,8 @@ func GetActorContext(req *gin.Context) (RequestContext, bool) {
 
 // Only allow requests with tokens
 func (a *API) HasAuthFilter(req *gin.Context) {
-	fmt.Println("HasAuthFilter called")
 	ctx, ok := GetActorContext(req)
 	if !ok {
-		fmt.Println("No actor context found")
 		req.JSON(http.StatusUnauthorized, ErrorResponse{
 			Cause: NotAuthorised,
 		})
@@ -69,14 +66,11 @@ func (a *API) HasAuthFilter(req *gin.Context) {
 	}
 
 	if ctx.UserID == "" {
-		fmt.Println("UserID is empty")
 		req.JSON(http.StatusUnauthorized, ErrorResponse{
 			Cause: NotAuthorised,
 		})
 		return
 	}
-
-	fmt.Println("UserID found:", ctx.UserID)
 
 	req.Next()
 }
