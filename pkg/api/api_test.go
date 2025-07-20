@@ -2,6 +2,7 @@ package api_test
 
 import (
 	"context"
+	"fmt"
 	"net/http/httptest"
 	"os"
 	"testing"
@@ -85,7 +86,6 @@ func TestMain(m *testing.M) {
 		us,
 	))
 
-	// Setup code if needed
 	code := m.Run()
 
 	if err := db.Drop(ctx); err != nil {
@@ -94,8 +94,32 @@ func TestMain(m *testing.M) {
 			Msg("failed to drop test database")
 	}
 
-	// Teardown code if needed
 	os.Exit(code)
+}
+
+func CreateTestUser(ctx context.Context, email string) (*users.Detail, func() error, error) {
+	u := &users.Detail{
+		FirstName: "Test",
+		LastName:  "User",
+		Email:     email,
+		Bio:       "I am a test user",
+	}
+
+	id, err := Users.Create(ctx, u)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	u.ID = id
+
+	callback := func() error {
+		if err := Users.Delete(ctx, u.ID); err != nil {
+			return fmt.Errorf("failed to delete test user: %w", err)
+		}
+		return nil
+	}
+
+	return u, callback, nil
 }
 
 func TestHealth(t *testing.T) {

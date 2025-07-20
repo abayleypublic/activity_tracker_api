@@ -3,11 +3,11 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/AustinBayley/activity_tracker_api/pkg/service"
-	"github.com/AustinBayley/activity_tracker_api/pkg/users"
 	"github.com/gin-gonic/gin"
 )
 
@@ -27,12 +27,16 @@ func (a *API) ActorFilter(req *gin.Context) {
 
 	// We need to get the ID of the user but don't want to do anything with an error
 	// as some routes do not require a user to be authenticated.
-	user := users.Detail{}
-	_ = a.users.GetByEmail(req, email, &user)
+	user, _ := a.users.GetByEmail(req, email)
+
+	id := service.ID("")
+	if user != nil {
+		id = user.ID
+	}
 
 	req.Set(UserCtxKey, RequestContext{
-		UserID: user.ID,
-		Admin:  strings.Contains(groups, a.adminGroup) && user.ID != "",
+		UserID: id,
+		Admin:  strings.Contains(groups, a.adminGroup) && id != "",
 	})
 
 	req.Next()
@@ -54,8 +58,10 @@ func GetActorContext(req *gin.Context) (RequestContext, bool) {
 
 // Only allow requests with tokens
 func (a *API) HasAuthFilter(req *gin.Context) {
+	fmt.Println("HasAuthFilter called")
 	ctx, ok := GetActorContext(req)
 	if !ok {
+		fmt.Println("No actor context found")
 		req.JSON(http.StatusUnauthorized, ErrorResponse{
 			Cause: NotAuthorised,
 		})
@@ -63,11 +69,14 @@ func (a *API) HasAuthFilter(req *gin.Context) {
 	}
 
 	if ctx.UserID == "" {
+		fmt.Println("UserID is empty")
 		req.JSON(http.StatusUnauthorized, ErrorResponse{
 			Cause: NotAuthorised,
 		})
 		return
 	}
+
+	fmt.Println("UserID found:", ctx.UserID)
 
 	req.Next()
 }

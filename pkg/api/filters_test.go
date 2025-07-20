@@ -1,11 +1,11 @@
 package api_test
 
 import (
+	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/AustinBayley/activity_tracker_api/pkg/api"
-	"github.com/AustinBayley/activity_tracker_api/pkg/users"
 	"github.com/gin-gonic/gin"
 )
 
@@ -27,8 +27,6 @@ func TestActorFilterNoHeaders(t *testing.T) {
 	if actor.Admin {
 		t.Error("expected Admin to be false, but it was true")
 	}
-
-	t.Log("UserID and Admin status are set correctly")
 }
 
 func TestActorFilterUnknownUserHeaders(t *testing.T) {
@@ -51,8 +49,6 @@ func TestActorFilterUnknownUserHeaders(t *testing.T) {
 	if actor.Admin {
 		t.Error("expected Admin to be false, but it was true")
 	}
-
-	t.Log("UserID and Admin status are set correctly")
 }
 
 func TestActorFilterValidUserHeaders(t *testing.T) {
@@ -62,32 +58,59 @@ func TestActorFilterValidUserHeaders(t *testing.T) {
 	ctx.Request.Header.Set("X-Auth-Request-Email", email)
 	ctx.Request.Header.Set("X-Auth-Request-Groups", AdminGroup)
 
-	API.ActorFilter(ctx)
-
-	u := users.Detail{
-		FirstName: "Test",
-		LastName:  "User",
-		Email:     email,
-		Bio:       "I am a test user",
+	_, callback, err := CreateTestUser(ctx, email)
+	if err != nil {
+		t.Fatalf("failed to create test user: %v", err)
 	}
-	Users.Create(ctx, &u)
+	defer callback()
+
+	API.ActorFilter(ctx)
 
 	actor, ok := api.GetActorContext(ctx)
 	if !ok {
 		t.Fatal("expected actor context to be set, but it was not")
 	}
 
-	if actor.UserID != "" {
-		t.Error("expected UserID to be empty")
+	if actor.UserID == "" {
+		t.Error("UserID should not be empty")
 	}
 
-	if actor.Admin {
-		t.Error("expected Admin to be false, but it was true")
+	if !actor.Admin {
+		t.Error("expected Admin to be true")
 	}
 
-	if err := Users.Delete(ctx, u.ID); err != nil {
-		t.Errorf("failed to delete test user: %v", err)
-	}
+}
 
-	t.Log("UserID and Admin status are set correctly")
+func TestHasAuthFilterNoContext(t *testing.T) {
+	ctx := gin.CreateTestContextOnly(httptest.NewRecorder(), API.Engine)
+	ctx.Request = httptest.NewRequest("GET", "/", nil)
+
+	API.ActorFilter(ctx)
+
+	API.HasAuthFilter(ctx)
+	if ctx.Writer.Status() != http.StatusUnauthorized {
+		t.Errorf("expected status %d, got %d", http.StatusUnauthorized, ctx.Writer.Status())
+	}
+}
+
+func TestHasAuthFilterWithContext(t *testing.T) {
+	ctx := gin.CreateTestContextOnly(httptest.NewRecorder(), API.Engine)
+	ctx.Request = httptest.NewRequest("GET", "/", nil)
+
+	email := "test@user.com"
+	ctx.Request.Header.Set("X-Auth-Request-Email", email)
+	ctx.Request.Header.Set("X-Auth-Request-Groups", AdminGroup)
+
+	_, callback, err := CreateTestUser(ctx, email)
+	if err != nil {
+		t.Fatalf("failed to create test user: %v", err)
+	}
+	defer callback()
+
+	API.ActorFilter(ctx)
+
+	API.HasAuthFilter(ctx)
+	if ctx.Writer.Status() != http.StatusOK {
+		t.Errorf("expected status %d, got %d", http.StatusOK, ctx.Writer.Status())
+	}
 }

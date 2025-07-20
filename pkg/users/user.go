@@ -83,23 +83,23 @@ func (svc *Service) Get(ctx context.Context, id service.ID, user interface{}) er
 	return nil
 }
 
-func (svc *Service) GetByEmail(ctx context.Context, email string, user interface{}) error {
+func (svc *Service) GetByEmail(ctx context.Context, email string) (*Detail, error) {
 	opts := NewDetailListOptions().SetEmail(email)
 
 	users := make([]Detail, 0)
-	if err := svc.users.List(ctx, *opts, users); err != nil {
-		return fmt.Errorf("failed to get user by email: %w", err)
+	if err := svc.users.List(ctx, *opts, &users); err != nil {
+		return nil, fmt.Errorf("failed to get user by email: %w", err)
 	}
 
 	if len(users) == 0 {
-		return fmt.Errorf("user with email %s not found", email)
+		return nil, fmt.Errorf("user with email %s not found", email)
 	}
 
 	if len(users) > 1 {
-		return fmt.Errorf("multiple users found with email %s", email)
+		return nil, fmt.Errorf("multiple users found with email %s", email)
 	}
 
-	return nil
+	return &users[0], nil
 }
 
 type ListOptions struct {
