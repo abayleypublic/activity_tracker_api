@@ -84,7 +84,8 @@ func (svc *Service) Get(ctx context.Context, id service.ID, user interface{}) er
 }
 
 func (svc *Service) GetByEmail(ctx context.Context, email string) (*Detail, error) {
-	opts := NewDetailListOptions().SetEmail(email)
+	opts := NewDetailListOptions().
+		SetEmail(email)
 
 	users := make([]Detail, 0)
 	if err := svc.users.List(ctx, *opts, &users); err != nil {

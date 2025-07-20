@@ -24,18 +24,25 @@ func (a *API) ActorFilter(req *gin.Context) {
 	email := req.GetHeader("X-Auth-Request-Email")
 	groups := req.GetHeader("X-Auth-Request-Groups")
 
+	req.Set(UserCtxKey, RequestContext{})
+
+	if email == "" {
+		req.Next()
+		return
+	}
+
 	// We need to get the ID of the user but don't want to do anything with an error
 	// as some routes do not require a user to be authenticated.
 	user, _ := a.users.GetByEmail(req, email)
 
-	id := service.ID("")
-	if user != nil {
-		id = user.ID
+	if user == nil {
+		req.Next()
+		return
 	}
 
 	req.Set(UserCtxKey, RequestContext{
-		UserID: id,
-		Admin:  strings.Contains(groups, a.adminGroup) && id != "",
+		UserID: user.ID,
+		Admin:  strings.Contains(groups, a.adminGroup) && user.ID != "",
 	})
 
 	req.Next()
