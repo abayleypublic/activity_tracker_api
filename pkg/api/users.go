@@ -14,10 +14,10 @@ import (
 )
 
 type PartialUser struct {
-	ID        service.ID `json:"id"`
-	FirstName string     `json:"firstName"`
-	LastName  string     `json:"lastName"`
-	Bio       string     `json:"bio"`
+	ID        service.ID `json:"id" bson:"_id,omitempty"`
+	FirstName string     `json:"firstName" bson:"firstName"`
+	LastName  string     `json:"lastName" bson:"lastName"`
+	Bio       string     `json:"bio" bson:"bio"`
 }
 
 func (a *API) GetUsers(req *gin.Context) {
@@ -156,6 +156,18 @@ func (a *API) PatchUser(req *gin.Context) {
 
 	// Update user
 	if err := a.users.Update(req, &user); err != nil {
+		log.Error().
+			Err(err).
+			Str("userID", string(user.ID)).
+			Msg("error updating user")
+
+		if errors.Is(err, users.ErrNotFound) {
+			req.JSON(http.StatusNotFound, ErrorResponse{
+				Cause: NotFound,
+			})
+			return
+		}
+
 		req.JSON(http.StatusInternalServerError, ErrorResponse{
 			Cause: InternalServer,
 		})

@@ -13,7 +13,7 @@ import (
 )
 
 type User struct {
-	Detail     `json:",inline"`
+	Detail     `json:",inline" bson:",inline"`
 	Challenges []service.ID `json:"challenges"`
 }
 

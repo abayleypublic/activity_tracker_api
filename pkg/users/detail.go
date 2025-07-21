@@ -138,7 +138,7 @@ func (svc *Details) Update(ctx context.Context, user Detail) error {
 		return fmt.Errorf("%w: %w", ErrUnknown, err)
 	}
 
-	if res.UpsertedCount != 1 {
+	if res.MatchedCount == 0 {
 		return ErrNotFound
 	}
 

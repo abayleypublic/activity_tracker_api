@@ -37,7 +37,9 @@ func TestActorFilterNoHeadersUserExists(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create test user: %v", err)
 	}
-	defer callback()
+	t.Cleanup(func() {
+		callback()
+	})
 
 	API.ActorFilter(ctx)
 
@@ -88,7 +90,9 @@ func TestActorFilterValidUserHeaders(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create test user: %v", err)
 	}
-	defer callback()
+	t.Cleanup(func() {
+		callback()
+	})
 
 	API.ActorFilter(ctx)
 
@@ -131,7 +135,9 @@ func TestHasAuthFilterWithContext(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create test user: %v", err)
 	}
-	defer callback()
+	t.Cleanup(func() {
+		callback()
+	})
 
 	API.ActorFilter(ctx)
 
@@ -164,7 +170,9 @@ func TestAdminAuthFilterValidUserID(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create test user: %v", err)
 	}
-	defer callback()
+	t.Cleanup(func() {
+		callback()
+	})
 
 	API.ActorFilter(ctx)
 	API.AdminAuthFilter(ctx)
@@ -184,7 +192,9 @@ func TestAdminAuthFilterValidUserIDNotAdmin(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create test user: %v", err)
 	}
-	defer callback()
+	t.Cleanup(func() {
+		callback()
+	})
 
 	API.ActorFilter(ctx)
 	API.AdminAuthFilter(ctx)
