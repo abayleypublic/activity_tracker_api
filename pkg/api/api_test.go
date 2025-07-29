@@ -34,7 +34,7 @@ var (
 func TestMain(m *testing.M) {
 	gin.SetMode(gin.TestMode)
 
-	client, err := mongo.Connect(options.Client().ApplyURI("mongodb://localhost:27017"))
+	client, err := mongo.Connect(options.Client().ApplyURI("mongodb://localhost:27017/?directConnection=true"))
 	if err != nil {
 		log.Fatal().
 			Err(err).

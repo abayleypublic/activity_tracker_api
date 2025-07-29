@@ -27,7 +27,7 @@ func TestCreateActivity(t *testing.T) {
 
 	req := httptest.NewRequest(
 		"POST",
-		"/users/test-user-id/activities", // Adjust userID as needed
+		"/users/test-user-id/activities",
 		strings.NewReader(string(bb)),
 	)
 	req.Header.Set("Content-Type", "application/json")

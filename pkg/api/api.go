@@ -76,7 +76,7 @@ type API struct {
 
 func NewAPI(cfg Config) *API {
 	return &API{
-		gin.Default(),
+		gin.New(),
 		cfg.Environment,
 		cfg.Port,
 		cfg.AdminGroup,

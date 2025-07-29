@@ -139,25 +139,33 @@ func (svc *Service) Update(ctx context.Context, user *Detail) error {
 	return nil
 }
 
-// TODO - ensure this is done with a transaction
 func (svc *Service) Delete(ctx context.Context, id service.ID) error {
-	if err := svc.users.Delete(ctx, id); err != nil {
-		return fmt.Errorf("failed to delete user: %w", err)
+	session, err := svc.users.Database().Client().StartSession()
+	if err != nil {
+		return fmt.Errorf("failed to start session: %w", err)
 	}
+	defer session.EndSession(ctx)
 
-	memsOpts := challenges.MembershipDeleteOpts{
-		User: &id,
-	}
-	if err := svc.memberships.Delete(ctx, memsOpts); err != nil {
-		return fmt.Errorf("failed to delete memberships for user: %w", err)
-	}
+	_, err = session.WithTransaction(ctx, func(sCtx context.Context) (interface{}, error) {
+		if err := svc.users.Delete(sCtx, id); err != nil {
+			return nil, fmt.Errorf("failed to delete user: %w", err)
+		}
 
-	actOpts := activities.ActivityDeleteOpts{
-		User: &id,
-	}
-	if err := svc.activities.Delete(ctx, actOpts); err != nil {
-		return fmt.Errorf("failed to delete activities for user: %w", err)
-	}
+		memsOpts := challenges.MembershipDeleteOpts{
+			User: &id,
+		}
+		if err := svc.memberships.Delete(sCtx, memsOpts); err != nil {
+			return nil, fmt.Errorf("failed to delete memberships for user: %w", err)
+		}
 
-	return nil
+		actOpts := activities.ActivityDeleteOpts{
+			User: &id,
+		}
+		if err := svc.activities.Delete(sCtx, actOpts); err != nil {
+			return nil, fmt.Errorf("failed to delete activities for user: %w", err)
+		}
+		return nil, nil
+	})
+
+	return err
 }

@@ -7,8 +7,10 @@ tasks:
 
   start:
     desc: Start the API and MongoDB
+    dotenv:
+      - .env
     cmds:
-      - docker compose up --build
+      - go run cmd/server/main.go
 
   # ==========
   # Terraform

@@ -41,22 +41,35 @@ func (svc *Service) Setup(ctx context.Context) error {
 	return nil
 }
 
-// TODO - fix and make sure this is done as a transaction
 func (svc *Service) Create(ctx context.Context, challenge *Challenge) (service.ID, error) {
-	cID, err := svc.challenges.Create(ctx, &challenge.Detail)
+	session, err := svc.challenges.Database().Client().StartSession()
 	if err != nil {
-		return "", fmt.Errorf("failed to create challenge: %w", err)
+		return "", fmt.Errorf("failed to start session: %w", err)
 	}
+	defer session.EndSession(ctx)
 
-	for _, userID := range challenge.Members {
-		membership := Membership{
-			Challenge: challenge.ID,
-			User:      userID,
-			Created:   challenge.CreatedDate,
+	var cID service.ID
+	_, err = session.WithTransaction(ctx, func(sCtx context.Context) (interface{}, error) {
+		cID, err = svc.challenges.Create(sCtx, &challenge.Detail)
+		if err != nil {
+			return "", fmt.Errorf("failed to create challenge: %w", err)
 		}
-		if err := svc.memberships.Create(ctx, &membership); err != nil {
-			return "", fmt.Errorf("failed to create memberships for challenge %s: %w", challenge.ID.ConvertID(), err)
+
+		for _, userID := range challenge.Members {
+			membership := Membership{
+				Challenge: challenge.ID,
+				User:      userID,
+				Created:   challenge.CreatedDate,
+			}
+			if err := svc.memberships.Create(sCtx, &membership); err != nil {
+				return "", fmt.Errorf("failed to create memberships for challenge %s: %w", challenge.ID.ConvertID(), err)
+			}
 		}
+
+		return nil, nil
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to create challenge in transaction: %w", err)
 	}
 
 	return cID, nil
@@ -192,30 +205,47 @@ func (o SetMemberOperation) Execute(ctx context.Context, _ *Details, memberships
 	return nil
 }
 
-// TODO - ensure this is done as a transaction
 func (svc *Service) Update(ctx context.Context, operations ...Operation) error {
-	for _, op := range operations {
-		if err := op.Execute(ctx, svc.challenges, svc.memberships); err != nil {
-			return fmt.Errorf("failed to execute operation: %w", err)
-		}
+	session, err := svc.challenges.Database().Client().StartSession()
+	if err != nil {
+		return fmt.Errorf("failed to start session: %w", err)
 	}
+	defer session.EndSession(ctx)
 
-	return nil
+	_, err = session.WithTransaction(ctx, func(sCtx context.Context) (interface{}, error) {
+		for _, op := range operations {
+			if err := op.Execute(sCtx, svc.challenges, svc.memberships); err != nil {
+				return nil, fmt.Errorf("failed to execute operation: %w", err)
+			}
+		}
+		return nil, nil
+	})
+
+	return err
 }
 
-// TODO - ensure this is done as a transaction
 func (svc *Service) Delete(ctx context.Context, challengeID service.ID) error {
-	if err := svc.challenges.Delete(ctx, challengeID); err != nil {
-		return fmt.Errorf("failed to delete challenge: %w", err)
+	session, err := svc.challenges.Database().Client().StartSession()
+	if err != nil {
+		return fmt.Errorf("failed to start session: %w", err)
 	}
+	defer session.EndSession(ctx)
 
-	opts := MembershipDeleteOpts{
-		Challenge: &challengeID,
-	}
+	_, err = session.WithTransaction(ctx, func(sCtx context.Context) (interface{}, error) {
+		if err := svc.challenges.Delete(sCtx, challengeID); err != nil {
+			return nil, fmt.Errorf("failed to delete challenge: %w", err)
+		}
 
-	if err := svc.memberships.Delete(ctx, opts); err != nil {
-		return fmt.Errorf("failed to delete memberships: %w", err)
-	}
+		opts := MembershipDeleteOpts{
+			Challenge: &challengeID,
+		}
 
-	return nil
+		if err := svc.memberships.Delete(sCtx, opts); err != nil {
+			return nil, fmt.Errorf("failed to delete memberships: %w", err)
+		}
+
+		return nil, nil
+	})
+
+	return err
 }
