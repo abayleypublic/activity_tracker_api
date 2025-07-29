@@ -14,12 +14,12 @@ import (
 
 // Detail represents the detailed information of a user.
 type Detail struct {
-	ID          service.ID `json:"id,omitempty" bson:"_id,omitempty"`
-	FirstName   string     `json:"firstName,omitempty" bson:"firstName"`
-	LastName    string     `json:"lastName,omitempty" bson:"lastName"`
-	Email       string     `json:"email,omitempty" bson:"email"`
-	CreatedDate *time.Time `json:"createdDate" bson:"createdDate"`
-	Bio         string     `json:"bio,omitempty" bson:"bio"`
+	ID          service.ID `json:"id" bson:"_id,omitempty"`
+	FirstName   string     `json:"first_name" bson:"firstName"`
+	LastName    string     `json:"last_name" bson:"lastName"`
+	Email       string     `json:"email" bson:"email"`
+	CreatedDate time.Time  `json:"created_date" bson:"createdDate"`
+	Bio         string     `json:"bio" bson:"bio"`
 }
 
 // Users is a wrapper around a MongoDB collection of users.
@@ -42,8 +42,7 @@ func (svc *Details) Setup(ctx context.Context) error {
 // Create adds a new user to the database.
 func (svc *Details) Create(ctx context.Context, user *Detail) (service.ID, error) {
 	user.ID = service.NewID()
-	now := time.Now()
-	user.CreatedDate = &now
+	user.CreatedDate = time.Now()
 	res, err := svc.InsertOne(ctx, user)
 	if err != nil {
 		if mongo.IsDuplicateKeyError(err) {

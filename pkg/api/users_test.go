@@ -119,7 +119,7 @@ func TestUpdateUser(t *testing.T) {
 		callback()
 	})
 
-	patch := `[{"op":"replace","path":"/firstName","value":"Updated"}]`
+	patch := `[{"op":"replace","path":"/first_name","value":"Updated"}]`
 	req := httptest.NewRequest("PATCH", "/users/"+string(user.ID), strings.NewReader(patch))
 	req.Header.Set("Content-Type", "application/json-patch+json")
 	recorder := httptest.NewRecorder()

@@ -42,8 +42,8 @@ var (
 
 type Activity struct {
 	ID          service.ID   `json:"id" bson:"_id"`
-	UserID      service.ID   `json:"userID" bson:"userID"`
-	CreatedDate *time.Time   `json:"createdDate,omitempty" bson:"createdDate"`
+	UserID      service.ID   `json:"user_id" bson:"userID"`
+	CreatedDate time.Time    `json:"created_date" bson:"createdDate"`
 	Type        ActivityType `json:"type" bson:"type"`
 	Value       float64      `json:"value" bson:"value"`
 	Start       time.Time    `json:"start" bson:"start"`
@@ -76,8 +76,7 @@ func (svc *Service) Setup(ctx context.Context) error {
 // Create adds a new activity to the database.
 func (svc *Service) Create(ctx context.Context, activity *Activity) (service.ID, error) {
 	activity.ID = service.NewID()
-	now := time.Now()
-	activity.CreatedDate = &now
+	activity.CreatedDate = time.Now()
 	res, err := svc.InsertOne(ctx, activity)
 	if err != nil {
 		if mongo.IsDuplicateKeyError(err) {

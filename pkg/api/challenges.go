@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"slices"
 	"strings"
-	"time"
 
 	"github.com/AustinBayley/activity_tracker_api/pkg/activities"
 	"github.com/AustinBayley/activity_tracker_api/pkg/challenges"
@@ -87,8 +86,6 @@ func (a *API) PostChallenge(req *gin.Context) {
 		})
 		return
 	}
-	challenge.ID = service.NewID()
-	challenge.CreatedDate = time.Now()
 
 	actor, ok := GetActorContext(req)
 	if !ok {

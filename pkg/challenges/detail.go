@@ -18,12 +18,12 @@ type BaseDetail struct {
 	ID          service.ID `json:"id" bson:"_id"`
 	Name        string     `json:"name" bson:"name"`
 	Description string     `json:"description" bson:"description"`
-	StartDate   time.Time  `json:"startDate" bson:"startDate"`
-	EndDate     time.Time  `json:"endDate" bson:"endDate"`
+	StartDate   time.Time  `json:"start_date" bson:"startDate"`
+	EndDate     time.Time  `json:"end_date" bson:"endDate"`
 	Public      bool       `json:"public" bson:"public"`
-	InviteOnly  bool       `json:"inviteOnly" bson:"inviteOnly"`
-	CreatedBy   service.ID `json:"createdBy" bson:"createdBy"`
-	CreatedDate time.Time  `json:"createdDate" bson:"createdDate"`
+	InviteOnly  bool       `json:"invite_only" bson:"inviteOnly"`
+	CreatedBy   service.ID `json:"created_by" bson:"createdBy"`
+	CreatedDate time.Time  `json:"created_date" bson:"createdDate"`
 }
 
 // Detail represents a full challenge, including its members.
@@ -79,16 +79,15 @@ func (svc *Details) Setup(ctx context.Context) error {
 // Create adds a new challenge to the database.
 func (svc *Details) Create(ctx context.Context, challenge *Detail) (service.ID, error) {
 	challenge.ID = service.NewID()
-	now := time.Now()
-	challenge.CreatedDate = now
-	_, err := svc.InsertOne(ctx, challenge)
+	challenge.CreatedDate = time.Now()
+	res, err := svc.InsertOne(ctx, challenge)
 	if err != nil {
 		if mongo.IsDuplicateKeyError(err) {
 			return "", ErrAlreadyExists
 		}
 		return "", fmt.Errorf("%w: %w", ErrUnknown, err)
 	}
-	return challenge.ID, nil
+	return service.ID(res.InsertedID.(string)), nil
 }
 
 // Get retrieves a challenge by its ID from the database.

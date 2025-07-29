@@ -5,7 +5,6 @@ package users
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/AustinBayley/activity_tracker_api/pkg/activities"
 	"github.com/AustinBayley/activity_tracker_api/pkg/challenges"
@@ -46,11 +45,6 @@ func (svc *Service) Setup(ctx context.Context) error {
 }
 
 func (svc *Service) Create(ctx context.Context, user *Detail) (service.ID, error) {
-	if user.CreatedDate == nil {
-		now := time.Now()
-		user.CreatedDate = &now
-	}
-
 	id, err := svc.users.Create(ctx, user)
 	if err != nil {
 		return "", fmt.Errorf("failed to create user: %w", err)

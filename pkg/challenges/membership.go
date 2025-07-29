@@ -16,7 +16,7 @@ import (
 type Membership struct {
 	Challenge service.ID `json:"challenge" bson:"challenge"`
 	User      service.ID `json:"user" bson:"user"`
-	Created   time.Time  `json:"created,omitempty" bson:"created,omitempty"`
+	Created   time.Time  `json:"created" bson:"created"`
 }
 
 // Memberships wraps a MongoDB collection of challenges.
