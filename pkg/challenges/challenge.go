@@ -43,15 +43,6 @@ func (svc *Service) Setup(ctx context.Context) error {
 
 // TODO - fix and make sure this is done as a transaction
 func (svc *Service) Create(ctx context.Context, challenge *Challenge) (service.ID, error) {
-	if len(challenge.Members) == 0 {
-		return "", fmt.Errorf("%w: challenge must have at least one member", ErrInvalid)
-	}
-
-	if challenge.CreatedDate == nil {
-		now := time.Now()
-		challenge.CreatedDate = &now
-	}
-
 	cID, err := svc.challenges.Create(ctx, &challenge.Detail)
 	if err != nil {
 		return "", fmt.Errorf("failed to create challenge: %w", err)
@@ -162,7 +153,7 @@ type SetDetailOperation struct {
 
 func (o SetDetailOperation) Execute(ctx context.Context, details *Details, _ *Memberships) error {
 	if err := details.Update(ctx, o.Detail); err != nil {
-		return fmt.Errorf("failed to create challenge: %w", err)
+		return fmt.Errorf("failed to update challenge: %w", err)
 	}
 	return nil
 }
@@ -179,7 +170,7 @@ func (o SetMemberOperation) Execute(ctx context.Context, _ *Details, memberships
 		membership := Membership{
 			Challenge: o.Challenge,
 			User:      o.User,
-			Created:   &now,
+			Created:   now,
 		}
 
 		if err := memberships.Create(ctx, &membership); err != nil {
@@ -205,7 +196,7 @@ func (o SetMemberOperation) Execute(ctx context.Context, _ *Details, memberships
 func (svc *Service) Update(ctx context.Context, operations ...Operation) error {
 	for _, op := range operations {
 		if err := op.Execute(ctx, svc.challenges, svc.memberships); err != nil {
-			return err
+			return fmt.Errorf("failed to execute operation: %w", err)
 		}
 	}
 

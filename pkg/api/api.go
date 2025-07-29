@@ -92,6 +92,14 @@ func (a *API) Start() error {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
+	a.Use(gin.Recovery())
+	a.Use(gin.LoggerWithConfig(gin.LoggerConfig{
+		SkipPaths: []string{
+			"/health",
+		},
+	}))
+	a.Use(a.ActorFilter)
+
 	// Get health of service
 	a.GET("/health", a.HealthCheck)
 
@@ -135,14 +143,6 @@ func (a *API) Start() error {
 				Msg("failed to disconnect from database")
 		}
 	}()
-
-	a.Use(gin.Recovery())
-	a.Use(gin.LoggerWithConfig(gin.LoggerConfig{
-		SkipPaths: []string{
-			"/health",
-		},
-	}))
-	a.Use(a.ActorFilter)
 
 	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%d", a.port),

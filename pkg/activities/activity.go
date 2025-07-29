@@ -172,7 +172,7 @@ func (svc *Service) Update(ctx context.Context, activity Activity) error {
 		return fmt.Errorf("%w: %w", ErrUnknown, err)
 	}
 
-	if res.UpsertedCount != 1 {
+	if res.MatchedCount != 1 {
 		return ErrNotFound
 	}
 

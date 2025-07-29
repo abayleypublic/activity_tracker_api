@@ -220,9 +220,23 @@ func (a *API) PostUser(req *gin.Context) {
 
 	actor, ok := GetActorContext(req)
 	if !ok {
+		log.Error().
+			Msg("error getting actor context")
+
 		req.JSON(http.StatusUnauthorized, ErrorResponse{
 			Cause: NotAuthorised,
 		})
+		return
+	}
+
+	if actor.UserID != "" && !actor.Admin {
+		log.Error().
+			Msg("user already exists")
+
+		req.JSON(http.StatusConflict, ErrorResponse{
+			Cause: Conflict,
+		})
+
 		return
 	}
 

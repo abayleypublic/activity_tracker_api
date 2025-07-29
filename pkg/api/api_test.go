@@ -6,10 +6,13 @@ import (
 	"net/http/httptest"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/AustinBayley/activity_tracker_api/pkg/activities"
 	"github.com/AustinBayley/activity_tracker_api/pkg/api"
 	"github.com/AustinBayley/activity_tracker_api/pkg/challenges"
+	"github.com/AustinBayley/activity_tracker_api/pkg/service"
+	"github.com/AustinBayley/activity_tracker_api/pkg/targets"
 	"github.com/AustinBayley/activity_tracker_api/pkg/users"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
@@ -120,6 +123,58 @@ func CreateTestUser(ctx context.Context, email string) (*users.Detail, func() er
 	}
 
 	return u, callback, nil
+}
+
+func CreateTestActivity(ctx context.Context, name string) (activities.Activity, func(), error) {
+	activity := activities.Activity{
+		Type:  activities.Running,
+		Value: 10,
+		Start: time.Now().Add(-2 * time.Hour),
+		End:   time.Now().Add(-1 * time.Hour),
+	}
+
+	id, err := Activities.Create(ctx, &activity)
+	if err != nil {
+		return activity, func() {}, err
+	}
+	activity.ID = id
+
+	cleanup := func() {
+		_ = Activities.Delete(ctx, activities.ActivityDeleteOpts{ID: &id})
+	}
+
+	return activity, cleanup, nil
+}
+
+func CreateTestChallenge(ctx context.Context, title string) (challenges.Challenge, func(), error) {
+	challenge := challenges.Challenge{
+		Detail: challenges.Detail{
+			BaseDetail: challenges.BaseDetail{
+				Name:        title,
+				Description: "A test challenge",
+			},
+			Target: &targets.RouteMovingTarget{
+				BaseTarget: targets.BaseTarget{
+					TargetType: targets.RouteMovingTargetType,
+				},
+			},
+		},
+		Members: []service.ID{
+			"1234",
+		},
+	}
+
+	id, err := Challenges.Create(ctx, &challenge)
+	if err != nil {
+		return challenge, func() {}, err
+	}
+	challenge.ID = id
+
+	cleanup := func() {
+		_ = Challenges.Delete(ctx, id)
+	}
+
+	return challenge, cleanup, nil
 }
 
 func TestHealth(t *testing.T) {

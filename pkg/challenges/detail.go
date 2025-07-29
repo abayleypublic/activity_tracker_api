@@ -2,6 +2,7 @@ package challenges
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -13,18 +14,49 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
+type BaseDetail struct {
+	ID          service.ID `json:"id" bson:"_id"`
+	Name        string     `json:"name" bson:"name"`
+	Description string     `json:"description" bson:"description"`
+	StartDate   time.Time  `json:"startDate" bson:"startDate"`
+	EndDate     time.Time  `json:"endDate" bson:"endDate"`
+	Public      bool       `json:"public" bson:"public"`
+	InviteOnly  bool       `json:"inviteOnly" bson:"inviteOnly"`
+	CreatedBy   service.ID `json:"createdBy" bson:"createdBy"`
+	CreatedDate time.Time  `json:"createdDate" bson:"createdDate"`
+}
+
 // Detail represents a full challenge, including its members.
 type Detail struct {
-	ID          service.ID     `json:"id,omitempty" bson:"_id,omitempty"`
-	Name        string         `json:"name" bson:"name"`
-	Description string         `json:"description" bson:"description"`
-	StartDate   time.Time      `json:"startDate" bson:"startDate"`
-	EndDate     time.Time      `json:"endDate" bson:"endDate"`
-	Public      bool           `json:"public" bson:"public"`
-	InviteOnly  bool           `json:"inviteOnly" bson:"inviteOnly"`
-	CreatedBy   service.ID     `json:"createdBy" bson:"createdBy"`
-	CreatedDate *time.Time     `json:"createdDate" bson:"createdDate"`
-	Target      targets.Target `json:"target" bson:"target"`
+	BaseDetail `json:",inline" bson:",inline"`
+	Target     targets.Target `json:"target" bson:"target"`
+}
+
+type RawDetail struct {
+	BaseDetail `json:",inline" bson:",inline"`
+	Target     targets.RawTarget `json:"target" bson:"target"`
+}
+
+func (d *Detail) UnmarshalBSON(b []byte) error {
+	raw := RawDetail{}
+	if err := bson.Unmarshal(b, &raw); err != nil {
+		return fmt.Errorf("%w: %w", ErrInvalid, err)
+	}
+
+	d.BaseDetail = raw.BaseDetail
+	d.Target = raw.Target.RealTarget
+	return nil
+}
+
+func (d *Detail) UnmarshalJSON(b []byte) error {
+	raw := RawDetail{}
+	if err := json.Unmarshal(b, &raw); err != nil {
+		return fmt.Errorf("%w: %w", ErrInvalid, err)
+	}
+
+	d.BaseDetail = raw.BaseDetail
+	d.Target = raw.Target.RealTarget
+	return nil
 }
 
 // Details wraps a MongoDB collection of challenge details.
@@ -48,7 +80,7 @@ func (svc *Details) Setup(ctx context.Context) error {
 func (svc *Details) Create(ctx context.Context, challenge *Detail) (service.ID, error) {
 	challenge.ID = service.NewID()
 	now := time.Now()
-	challenge.CreatedDate = &now
+	challenge.CreatedDate = now
 	_, err := svc.InsertOne(ctx, challenge)
 	if err != nil {
 		if mongo.IsDuplicateKeyError(err) {
@@ -130,7 +162,7 @@ func (svc *Details) Update(ctx context.Context, challenge Detail) error {
 		return fmt.Errorf("%w: %w", ErrUnknown, err)
 	}
 
-	if res.UpsertedCount != 1 {
+	if res.MatchedCount != 1 {
 		return ErrNotFound
 	}
 

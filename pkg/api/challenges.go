@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/AustinBayley/activity_tracker_api/pkg/activities"
 	"github.com/AustinBayley/activity_tracker_api/pkg/challenges"
@@ -87,6 +88,24 @@ func (a *API) PostChallenge(req *gin.Context) {
 		return
 	}
 	challenge.ID = service.NewID()
+	challenge.CreatedDate = time.Now()
+
+	actor, ok := GetActorContext(req)
+	if !ok {
+		log.Error().
+			Str("ID", challenge.ID.ConvertID()).
+			Msg("failed to get actor from context")
+
+		req.JSON(http.StatusInternalServerError, ErrorResponse{
+			Cause: InternalServer,
+		})
+		return
+	}
+
+	challenge.CreatedBy = actor.UserID
+	challenge.Members = []service.ID{
+		actor.UserID,
+	}
 
 	cID, err := a.challenges.Create(req, &challenge)
 	if err != nil {
@@ -176,12 +195,18 @@ func (a *API) PatchChallenge(req *gin.Context) {
 		// Get stored challenge
 		challenge := challenges.Detail{}
 		if err := a.challenges.Get(req, challengeID, &challenge); err != nil {
+			log.Error().
+				Err(err).
+				Str("ID", id).
+				Msg("error getting challenge")
+
 			if errors.Is(err, challenges.ErrNotFound) {
 				req.JSON(http.StatusNotFound, ErrorResponse{
 					Cause: NotFound,
 				})
 				return
 			}
+
 			req.JSON(http.StatusInternalServerError, ErrorResponse{
 				Cause: InternalServer,
 			})
@@ -230,6 +255,11 @@ func (a *API) PatchChallenge(req *gin.Context) {
 
 	// Update challenge
 	if err := a.challenges.Update(req, operations...); err != nil {
+		log.Error().
+			Err(err).
+			Str("ID", id).
+			Msg("error updating challenge")
+
 		req.JSON(http.StatusInternalServerError, ErrorResponse{
 			Cause: InternalServer,
 		})

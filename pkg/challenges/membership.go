@@ -16,7 +16,7 @@ import (
 type Membership struct {
 	Challenge service.ID `json:"challenge" bson:"challenge"`
 	User      service.ID `json:"user" bson:"user"`
-	Created   *time.Time `json:"created,omitempty" bson:"created,omitempty"`
+	Created   time.Time  `json:"created,omitempty" bson:"created,omitempty"`
 }
 
 // Memberships wraps a MongoDB collection of challenges.
@@ -53,7 +53,7 @@ func (svc *Memberships) Setup(ctx context.Context) error {
 // Create adds a new membership to the database.
 func (svc *Memberships) Create(ctx context.Context, membership *Membership) error {
 	now := time.Now()
-	membership.Created = &now
+	membership.Created = now
 	_, err := svc.InsertOne(ctx, membership)
 	if err != nil {
 		if mongo.IsDuplicateKeyError(err) {
@@ -155,13 +155,9 @@ func (svc *Memberships) Delete(ctx context.Context, opts MembershipDeleteOpts) e
 		filter = append(filter, bson.E{Key: "challenge", Value: opts.Challenge.ConvertID()})
 	}
 
-	res, err := svc.DeleteMany(ctx, filter)
+	_, err := svc.DeleteMany(ctx, filter)
 	if err != nil {
 		return fmt.Errorf("%w: %w", ErrUnknown, err)
-	}
-
-	if res.DeletedCount >= 1 {
-		return ErrNotFound
 	}
 
 	return nil
