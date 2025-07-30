@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/AustinBayley/activity_tracker_api/pkg/service"
+	"github.com/AustinBayley/activity_tracker_api/pkg/validate"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
@@ -17,6 +18,7 @@ var (
 	ErrNotFound      = errors.New("activity not found")
 	ErrUnknown       = errors.New("unknown error")
 	ErrInvalid       = errors.New("invalid")
+	ErrValidation    = errors.New("validation error")
 )
 
 type ActivityType string
@@ -42,12 +44,12 @@ var (
 
 type Activity struct {
 	ID          service.ID   `json:"id" bson:"_id"`
-	UserID      service.ID   `json:"user_id" bson:"userID"`
-	CreatedDate time.Time    `json:"created_date" bson:"createdDate"`
-	Type        ActivityType `json:"type" bson:"type"`
-	Value       float64      `json:"value" bson:"value"`
-	Start       time.Time    `json:"start" bson:"start"`
-	End         time.Time    `json:"end,omitempty" bson:"end"`
+	UserID      service.ID   `json:"user_id" bson:"userID" validate:"required"`
+	CreatedDate time.Time    `json:"created_date" bson:"createdDate" validate:"required"`
+	Type        ActivityType `json:"type" bson:"type" validate:"required"`
+	Value       float64      `json:"value" bson:"value" validate:"required"`
+	Start       time.Time    `json:"start" bson:"start" validate:"required"`
+	End         time.Time    `json:"end,omitempty" bson:"end" validate:"required,gtfield=Start"`
 }
 
 func NewActivity(Type ActivityType, Value float64) Activity {
@@ -77,6 +79,11 @@ func (svc *Service) Setup(ctx context.Context) error {
 func (svc *Service) Create(ctx context.Context, activity *Activity) (service.ID, error) {
 	activity.ID = service.NewID()
 	activity.CreatedDate = time.Now()
+
+	if err := validate.Struct(activity); err != nil {
+		return "", fmt.Errorf("%w: %w", ErrValidation, err)
+	}
+
 	res, err := svc.InsertOne(ctx, activity)
 	if err != nil {
 		if mongo.IsDuplicateKeyError(err) {
@@ -160,6 +167,10 @@ func (svc *Service) List(ctx context.Context, opts ListOptions, activities inter
 
 // Update updates an activity in the database based on the provided criteria.
 func (svc *Service) Update(ctx context.Context, activity Activity) error {
+	if err := validate.Struct(activity); err != nil {
+		return fmt.Errorf("%w: %w", ErrValidation, err)
+	}
+
 	opts := options.UpdateOne().SetUpsert(true)
 	res, err := svc.UpdateOne(
 		ctx,

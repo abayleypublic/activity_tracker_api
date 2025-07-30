@@ -27,6 +27,8 @@ func TestCreateChallenge(t *testing.T) {
 			BaseDetail: challenges.BaseDetail{
 				Name:        "Test Challenge",
 				Description: "A test challenge",
+				StartDate:   time.Now().Add(-20 * time.Hour),
+				EndDate:     time.Now().Add(-18 * time.Hour),
 			},
 			Target: &targets.RouteMovingTarget{
 				BaseTarget: targets.BaseTarget{

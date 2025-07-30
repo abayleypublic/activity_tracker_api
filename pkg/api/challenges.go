@@ -110,6 +110,13 @@ func (a *API) PostChallenge(req *gin.Context) {
 			Err(err).
 			Msg("error creating challenge")
 
+		if errors.Is(err, challenges.ErrValidation) {
+			req.JSON(http.StatusUnprocessableEntity, ErrorResponse{
+				Cause: Validation,
+			})
+			return
+		}
+
 		req.JSON(http.StatusInternalServerError, ErrorResponse{
 			Cause: InternalServer,
 		})
@@ -278,6 +285,19 @@ func (a *API) PatchChallenge(req *gin.Context) {
 			Err(err).
 			Str("ID", id).
 			Msg("error updating challenge")
+
+		switch {
+		case errors.Is(err, challenges.ErrNotFound):
+			req.JSON(http.StatusNotFound, ErrorResponse{
+				Cause: NotFound,
+			})
+			return
+		case errors.Is(err, challenges.ErrValidation):
+			req.JSON(http.StatusUnprocessableEntity, ErrorResponse{
+				Cause: Validation,
+			})
+			return
+		}
 
 		req.JSON(http.StatusInternalServerError, ErrorResponse{
 			Cause: InternalServer,

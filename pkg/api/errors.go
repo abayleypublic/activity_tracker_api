@@ -8,6 +8,7 @@ const (
 	Conflict       = "conflict"
 	Forbidden      = "forbidden"
 	Unauthorised   = "unauthorised"
+	Validation     = "validation error"
 )
 
 type ErrorResponse struct {

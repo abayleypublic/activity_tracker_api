@@ -9,6 +9,7 @@ import (
 
 	"github.com/AustinBayley/activity_tracker_api/pkg/service"
 	"github.com/AustinBayley/activity_tracker_api/pkg/targets"
+	"github.com/AustinBayley/activity_tracker_api/pkg/validate"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
@@ -16,14 +17,14 @@ import (
 
 type BaseDetail struct {
 	ID          service.ID `json:"id" bson:"_id"`
-	Name        string     `json:"name" bson:"name"`
-	Description string     `json:"description" bson:"description"`
-	StartDate   time.Time  `json:"start_date" bson:"startDate"`
-	EndDate     time.Time  `json:"end_date" bson:"endDate"`
+	Name        string     `json:"name" bson:"name" validate:"required"`
+	Description string     `json:"description" bson:"description" validate:"required"`
+	StartDate   time.Time  `json:"start_date" bson:"startDate" validate:"required"`
+	EndDate     time.Time  `json:"end_date" bson:"endDate" validate:"required"`
 	Public      bool       `json:"public" bson:"public"`
 	InviteOnly  bool       `json:"invite_only" bson:"inviteOnly"`
-	CreatedBy   service.ID `json:"created_by" bson:"createdBy"`
-	CreatedDate time.Time  `json:"created_date" bson:"createdDate"`
+	CreatedBy   service.ID `json:"created_by" bson:"createdBy" validate:"required"`
+	CreatedDate time.Time  `json:"created_date" bson:"createdDate" validate:"required"`
 }
 
 // Detail represents a full challenge, including its members.
@@ -80,6 +81,11 @@ func (svc *Details) Setup(ctx context.Context) error {
 func (svc *Details) Create(ctx context.Context, challenge *Detail) (service.ID, error) {
 	challenge.ID = service.NewID()
 	challenge.CreatedDate = time.Now()
+
+	if err := validate.Struct(challenge); err != nil {
+		return "", fmt.Errorf("%w: %w", ErrValidation, err)
+	}
+
 	res, err := svc.InsertOne(ctx, challenge)
 	if err != nil {
 		if mongo.IsDuplicateKeyError(err) {
@@ -150,6 +156,10 @@ func (svc *Details) List(ctx context.Context, opts DetailListOptions, challenges
 
 // Update updates a challenge in the database based on the provided criteria.
 func (svc *Details) Update(ctx context.Context, challenge Detail) error {
+	if err := validate.Struct(challenge); err != nil {
+		return fmt.Errorf("%w: %w", ErrValidation, err)
+	}
+
 	opts := options.UpdateOne().SetUpsert(true)
 	res, err := svc.UpdateOne(
 		ctx,

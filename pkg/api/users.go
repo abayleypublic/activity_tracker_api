@@ -182,9 +182,15 @@ func (a *API) PatchUser(req *gin.Context) {
 			Str("userID", string(user.ID)).
 			Msg("error updating user")
 
-		if errors.Is(err, users.ErrNotFound) {
+		switch {
+		case errors.Is(err, users.ErrNotFound):
 			req.JSON(http.StatusNotFound, ErrorResponse{
 				Cause: NotFound,
+			})
+			return
+		case errors.Is(err, users.ErrValidation):
+			req.JSON(http.StatusUnprocessableEntity, ErrorResponse{
+				Cause: Validation,
 			})
 			return
 		}
@@ -298,9 +304,15 @@ func (a *API) PostUser(req *gin.Context) {
 			Str("email", user.Email).
 			Msg("error creating user")
 
-		if errors.Is(err, users.ErrAlreadyExists) {
+		switch {
+		case errors.Is(err, users.ErrAlreadyExists):
 			req.JSON(http.StatusConflict, ErrorResponse{
 				Cause: "user already exists",
+			})
+			return
+		case errors.Is(err, users.ErrValidation):
+			req.JSON(http.StatusUnprocessableEntity, ErrorResponse{
+				Cause: Validation,
 			})
 			return
 		}

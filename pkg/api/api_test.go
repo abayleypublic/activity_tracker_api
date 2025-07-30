@@ -154,6 +154,8 @@ func CreateTestChallenge(ctx context.Context, title string) (challenges.Challeng
 				Name:        title,
 				Description: "A test challenge",
 				CreatedBy:   service.ID("test_user"),
+				StartDate:   time.Now().Add(-20 * time.Hour),
+				EndDate:     time.Now().Add(-18 * time.Hour),
 			},
 			Target: &targets.RouteMovingTarget{
 				BaseTarget: targets.BaseTarget{

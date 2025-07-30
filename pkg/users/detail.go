@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/AustinBayley/activity_tracker_api/pkg/service"
+	"github.com/AustinBayley/activity_tracker_api/pkg/validate"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
@@ -14,11 +15,11 @@ import (
 
 // Detail represents the detailed information of a user.
 type Detail struct {
-	ID          service.ID `json:"id" bson:"_id,omitempty"`
-	FirstName   string     `json:"first_name" bson:"firstName"`
-	LastName    string     `json:"last_name" bson:"lastName"`
-	Email       string     `json:"email" bson:"email"`
-	CreatedDate time.Time  `json:"created_date" bson:"createdDate"`
+	ID          service.ID `json:"id" bson:"_id"`
+	FirstName   string     `json:"first_name" bson:"firstName" validate:"required"`
+	LastName    string     `json:"last_name" bson:"lastName" validate:"required"`
+	Email       string     `json:"email" bson:"email" validate:"required,email"`
+	CreatedDate time.Time  `json:"created_date" bson:"createdDate" validate:"required"`
 	Bio         string     `json:"bio" bson:"bio"`
 }
 
@@ -43,6 +44,11 @@ func (svc *Details) Setup(ctx context.Context) error {
 func (svc *Details) Create(ctx context.Context, user *Detail) (service.ID, error) {
 	user.ID = service.NewID()
 	user.CreatedDate = time.Now()
+
+	if err := validate.Struct(user); err != nil {
+		return "", fmt.Errorf("%w: %w", ErrValidation, err)
+	}
+
 	res, err := svc.InsertOne(ctx, user)
 	if err != nil {
 		if mongo.IsDuplicateKeyError(err) {
@@ -126,6 +132,10 @@ func (svc *Details) List(ctx context.Context, opts DetailListOptions, users inte
 
 // Update updates a user in the database based on the provided criteria.
 func (svc *Details) Update(ctx context.Context, user Detail) error {
+	if err := validate.Struct(user); err != nil {
+		return fmt.Errorf("%w: %w", ErrValidation, err)
+	}
+
 	opts := options.UpdateOne().SetUpsert(true)
 	res, err := svc.UpdateOne(
 		ctx,

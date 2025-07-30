@@ -88,7 +88,6 @@ func (a *API) PostUserActivity(req *gin.Context) {
 		})
 		return
 	}
-	activity.ID = service.NewID()
 	activity.UserID = userID
 
 	oid, err := a.activities.Create(req, &activity)
@@ -97,6 +96,13 @@ func (a *API) PostUserActivity(req *gin.Context) {
 			Err(err).
 			Str("userID", string(userID)).
 			Msg("error creating activity")
+
+		if errors.Is(err, activities.ErrValidation) {
+			req.JSON(http.StatusUnprocessableEntity, ErrorResponse{
+				Cause: Validation,
+			})
+			return
+		}
 
 		req.JSON(http.StatusInternalServerError, ErrorResponse{
 			Cause: InternalServer,
@@ -229,9 +235,15 @@ func (a *API) PatchActivity(req *gin.Context) {
 			Str("activityID", id).
 			Msg("error updating activity")
 
-		if errors.Is(err, activities.ErrNotFound) {
+		switch {
+		case errors.Is(err, activities.ErrNotFound):
 			req.JSON(http.StatusNotFound, ErrorResponse{
 				Cause: NotFound,
+			})
+			return
+		case errors.Is(err, activities.ErrValidation):
+			req.JSON(http.StatusUnprocessableEntity, ErrorResponse{
+				Cause: Validation,
 			})
 			return
 		}

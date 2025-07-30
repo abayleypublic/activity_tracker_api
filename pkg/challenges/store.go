@@ -9,4 +9,5 @@ var (
 	ErrNotFound      = errors.New("challenge not found")
 	ErrUnknown       = errors.New("unknown error")
 	ErrInvalid       = errors.New("invalid")
+	ErrValidation    = errors.New("validation error")
 )
