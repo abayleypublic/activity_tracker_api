@@ -127,10 +127,11 @@ func CreateTestUser(ctx context.Context, email string) (*users.Detail, func() er
 
 func CreateTestActivity(ctx context.Context, name string) (activities.Activity, func(), error) {
 	activity := activities.Activity{
-		Type:  activities.Running,
-		Value: 10,
-		Start: time.Now().Add(-2 * time.Hour),
-		End:   time.Now().Add(-1 * time.Hour),
+		Type:   activities.Running,
+		UserID: service.ID("test_user"),
+		Value:  10,
+		Start:  time.Now().Add(-2 * time.Hour),
+		End:    time.Now().Add(-1 * time.Hour),
 	}
 
 	id, err := Activities.Create(ctx, &activity)
@@ -152,6 +153,7 @@ func CreateTestChallenge(ctx context.Context, title string) (challenges.Challeng
 			BaseDetail: challenges.BaseDetail{
 				Name:        title,
 				Description: "A test challenge",
+				CreatedBy:   service.ID("test_user"),
 			},
 			Target: &targets.RouteMovingTarget{
 				BaseTarget: targets.BaseTarget{

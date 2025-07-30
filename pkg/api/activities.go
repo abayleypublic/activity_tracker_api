@@ -55,6 +55,28 @@ func (a *API) PostUserActivity(req *gin.Context) {
 	}
 	userID := service.ID(id)
 
+	actor, ok := GetActorContext(req)
+	if !ok {
+		log.Error().
+			Msg("failed to get actor from context")
+
+		req.JSON(http.StatusUnauthorized, ErrorResponse{
+			Cause: Unauthorised,
+		})
+		return
+	}
+
+	if actor.UserID != userID && !actor.Admin {
+		log.Error().
+			Str("userID", userID.ConvertID()).
+			Msg("actor is not allowed to create activity for user")
+
+		req.JSON(http.StatusForbidden, ErrorResponse{
+			Cause: "not allowed to create activity for user",
+		})
+		return
+	}
+
 	activity := activities.Activity{}
 	if err := req.BindJSON(&activity); err != nil {
 		log.Error().
@@ -112,6 +134,29 @@ func (a *API) PatchActivity(req *gin.Context) {
 
 		req.JSON(http.StatusInternalServerError, ErrorResponse{
 			Cause: InternalServer,
+		})
+		return
+	}
+
+	actor, ok := GetActorContext(req)
+	if !ok {
+		log.Error().
+			Str("ID", stored.ID.ConvertID()).
+			Msg("failed to get actor from context")
+
+		req.JSON(http.StatusUnauthorized, ErrorResponse{
+			Cause: Unauthorised,
+		})
+		return
+	}
+
+	if stored.UserID != actor.UserID && !actor.Admin {
+		log.Error().
+			Str("ID", stored.ID.ConvertID()).
+			Msg("actor is not allowed to update activity")
+
+		req.JSON(http.StatusForbidden, ErrorResponse{
+			Cause: "not allowed to update activity",
 		})
 		return
 	}
@@ -210,6 +255,49 @@ func (a *API) DeleteActivity(req *gin.Context) {
 	}
 	aID := service.ID(id)
 
+	activity := activities.Activity{}
+	if err := a.activities.Get(req, service.ID(id), &activity); err != nil {
+		log.Error().
+			Err(err).
+			Str("activityID", id).
+			Msg("error getting activity")
+
+		if errors.Is(err, activities.ErrNotFound) {
+			req.JSON(http.StatusNotFound, ErrorResponse{
+				Cause: NotFound,
+			})
+			return
+		}
+
+		req.JSON(http.StatusInternalServerError, ErrorResponse{
+			Cause: InternalServer,
+		})
+		return
+	}
+
+	actor, ok := GetActorContext(req)
+	if !ok {
+		log.Error().
+			Str("ID", id).
+			Msg("failed to get actor from context")
+
+		req.JSON(http.StatusUnauthorized, ErrorResponse{
+			Cause: Unauthorised,
+		})
+		return
+	}
+
+	if activity.UserID != actor.UserID && !actor.Admin {
+		log.Error().
+			Str("ID", activity.ID.ConvertID()).
+			Msg("actor is not allowed to delete activity")
+
+		req.JSON(http.StatusForbidden, ErrorResponse{
+			Cause: "not allowed to delete activity",
+		})
+		return
+	}
+
 	opts := activities.ActivityDeleteOpts{
 		ID: &aID,
 	}
@@ -257,7 +345,7 @@ func (a *API) GetUserActivities(req *gin.Context) {
 		SetSkip(rawOpts.Page - 1).
 		SetUser(service.ID(id))
 
-	activities := []activities.Activity{}
+	activities := make([]activities.Activity, 0, opts.Limit)
 	if err := a.activities.List(req, *opts, &activities); err != nil {
 		log.Error().
 			Err(err).

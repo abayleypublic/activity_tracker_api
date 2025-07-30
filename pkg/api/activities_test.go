@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/AustinBayley/activity_tracker_api/pkg/activities"
+	"github.com/AustinBayley/activity_tracker_api/pkg/api"
+	"github.com/AustinBayley/activity_tracker_api/pkg/service"
 	"github.com/gin-gonic/gin"
 )
 
@@ -27,7 +29,7 @@ func TestCreateActivity(t *testing.T) {
 
 	req := httptest.NewRequest(
 		"POST",
-		"/users/test-user-id/activities",
+		"/users/test_user/activities",
 		strings.NewReader(string(bb)),
 	)
 	req.Header.Set("Content-Type", "application/json")
@@ -35,7 +37,11 @@ func TestCreateActivity(t *testing.T) {
 	recorder := httptest.NewRecorder()
 	ctx := gin.CreateTestContextOnly(recorder, API.Engine)
 	ctx.Request = req
-	ctx.AddParam("userID", "test-user-id")
+	ctx.AddParam("userID", "test_user")
+
+	ctx.Set(api.UserCtxKey, api.RequestContext{
+		UserID: service.ID("test_user"),
+	})
 
 	timePre := time.Now()
 	API.PostUserActivity(ctx)
@@ -98,6 +104,10 @@ func TestUpdateActivity(t *testing.T) {
 	ctx.AddParam("activityID", string(activity.ID))
 	ctx.Request = req
 
+	ctx.Set(api.UserCtxKey, api.RequestContext{
+		UserID: service.ID("test_user"),
+	})
+
 	API.PatchActivity(ctx)
 
 	if ctx.Writer.Status() != 204 {
@@ -119,6 +129,10 @@ func TestDeleteActivity(t *testing.T) {
 	recorder := httptest.NewRecorder()
 	ctx := gin.CreateTestContextOnly(recorder, API.Engine)
 	ctx.Params = gin.Params{{Key: "activityID", Value: string(activity.ID)}}
+
+	ctx.Set(api.UserCtxKey, api.RequestContext{
+		UserID: service.ID("test_user"),
+	})
 
 	API.DeleteActivity(ctx)
 

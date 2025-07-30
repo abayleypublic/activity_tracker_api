@@ -8,7 +8,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/AustinBayley/activity_tracker_api/pkg/api"
 	"github.com/AustinBayley/activity_tracker_api/pkg/challenges"
+	"github.com/AustinBayley/activity_tracker_api/pkg/service"
 	"github.com/AustinBayley/activity_tracker_api/pkg/targets"
 	"github.com/gin-gonic/gin"
 )
@@ -60,7 +62,6 @@ func TestCreateChallenge(t *testing.T) {
 	}
 
 	var createdChallenge challenges.Challenge
-	// var raw map[string]interface{}
 	if err := json.NewDecoder(recorder.Body).Decode(&createdChallenge); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
@@ -118,6 +119,10 @@ func TestUpdateChallenge(t *testing.T) {
 	ctx.AddParam("id", string(challenge.ID))
 	ctx.Request = req
 
+	ctx.Set(api.UserCtxKey, api.RequestContext{
+		UserID: service.ID("test_user"),
+	})
+
 	API.PatchChallenge(ctx)
 
 	if ctx.Writer.Status() != 204 {
@@ -145,6 +150,10 @@ func TestDeleteChallenge(t *testing.T) {
 	ctx := gin.CreateTestContextOnly(recorder, API.Engine)
 	ctx.Params = gin.Params{{Key: "id", Value: string(challenge.ID)}}
 	ctx.Request = req
+
+	ctx.Set(api.UserCtxKey, api.RequestContext{
+		UserID: service.ID("test_user"),
+	})
 
 	API.DeleteChallenge(ctx)
 

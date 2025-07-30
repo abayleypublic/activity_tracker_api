@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/AustinBayley/activity_tracker_api/pkg/service"
-	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 type Challenge struct {
@@ -123,7 +122,7 @@ func (opts *ListOptions) SetUser(id service.ID) *ListOptions {
 	return opts
 }
 
-func (svc *Service) List(ctx context.Context, opts ListOptions, challenges interface{}) error {
+func (svc *Service) List(ctx context.Context, opts ListOptions, challenges *[]Detail) error {
 	mems := make([]Membership, 0, opts.Limit)
 
 	memsOpts := MembershipListOptions{
@@ -131,26 +130,16 @@ func (svc *Service) List(ctx context.Context, opts ListOptions, challenges inter
 		Skip:  opts.Skip,
 		User:  opts.User,
 	}
-	if err := svc.memberships.List(ctx, memsOpts, mems); err != nil {
+	if err := svc.memberships.List(ctx, memsOpts, &mems); err != nil {
 		return fmt.Errorf("failed to list memberships: %w", err)
 	}
 
-	cs := make(bson.A, 0, len(mems))
 	for _, m := range mems {
-		var c bson.Raw
-		if err := svc.challenges.Get(ctx, m.Challenge, &c); err != nil {
+		var detail Detail
+		if err := svc.challenges.Get(ctx, m.Challenge, &detail); err != nil {
 			return fmt.Errorf("failed to get challenge %s from membership: %w", m.Challenge.ConvertID(), err)
 		}
-		cs = append(cs, c)
-	}
-
-	data, err := bson.Marshal(cs)
-	if err != nil {
-		return fmt.Errorf("failed to marshal challenges: %w", err)
-	}
-
-	if err := bson.Unmarshal(data, challenges); err != nil {
-		return fmt.Errorf("failed to unmarshal challenges: %w", err)
+		*challenges = append(*challenges, detail)
 	}
 
 	return nil

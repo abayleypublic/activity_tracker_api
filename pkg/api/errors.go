@@ -6,6 +6,8 @@ const (
 	InternalServer = "internal server error"
 	Invalid        = "invalid request"
 	Conflict       = "conflict"
+	Forbidden      = "forbidden"
+	Unauthorised   = "unauthorised"
 )
 
 type ErrorResponse struct {

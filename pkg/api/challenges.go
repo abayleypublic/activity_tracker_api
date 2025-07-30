@@ -27,7 +27,7 @@ func (a *API) GetChallenges(req *gin.Context) {
 		SetLimit(rawOpts.Max).
 		SetSkip(rawOpts.Page - 1)
 
-	cs := []challenges.Challenge{}
+	cs := []challenges.Detail{}
 	if err := a.challenges.List(req, *opts, &cs); err != nil {
 		log.Error().
 			Err(err).
@@ -93,8 +93,8 @@ func (a *API) PostChallenge(req *gin.Context) {
 			Str("ID", challenge.ID.ConvertID()).
 			Msg("failed to get actor from context")
 
-		req.JSON(http.StatusInternalServerError, ErrorResponse{
-			Cause: InternalServer,
+		req.JSON(http.StatusUnauthorized, ErrorResponse{
+			Cause: Unauthorised,
 		})
 		return
 	}
@@ -188,28 +188,50 @@ func (a *API) PatchChallenge(req *gin.Context) {
 		}
 	}
 
-	if len(patch) > 0 {
-		// Get stored challenge
-		challenge := challenges.Detail{}
-		if err := a.challenges.Get(req, challengeID, &challenge); err != nil {
-			log.Error().
-				Err(err).
-				Str("ID", id).
-				Msg("error getting challenge")
+	challenge := challenges.Detail{}
+	if err := a.challenges.Get(req, challengeID, &challenge); err != nil {
+		log.Error().
+			Err(err).
+			Str("ID", id).
+			Msg("error getting challenge")
 
-			if errors.Is(err, challenges.ErrNotFound) {
-				req.JSON(http.StatusNotFound, ErrorResponse{
-					Cause: NotFound,
-				})
-				return
-			}
-
-			req.JSON(http.StatusInternalServerError, ErrorResponse{
-				Cause: InternalServer,
+		if errors.Is(err, challenges.ErrNotFound) {
+			req.JSON(http.StatusNotFound, ErrorResponse{
+				Cause: NotFound,
 			})
 			return
 		}
 
+		req.JSON(http.StatusInternalServerError, ErrorResponse{
+			Cause: InternalServer,
+		})
+		return
+	}
+
+	actor, ok := GetActorContext(req)
+	if !ok {
+		log.Error().
+			Str("ID", challenge.ID.ConvertID()).
+			Msg("failed to get actor from context")
+
+		req.JSON(http.StatusUnauthorized, ErrorResponse{
+			Cause: Unauthorised,
+		})
+		return
+	}
+
+	if challenge.CreatedBy != actor.UserID && !actor.Admin {
+		log.Error().
+			Str("ID", challenge.ID.ConvertID()).
+			Msg("actor is not allowed to update challenge")
+
+		req.JSON(http.StatusForbidden, ErrorResponse{
+			Cause: "not allowed to update challenge",
+		})
+		return
+	}
+
+	if len(patch) > 0 {
 		// Marshal stored challenge to bytes
 		subb, err := json.Marshal(challenge)
 		if err != nil {
@@ -275,7 +297,52 @@ func (a *API) DeleteChallenge(req *gin.Context) {
 		return
 	}
 
-	if err := a.challenges.Delete(req, service.ID(id)); err != nil {
+	sID := service.ID(id)
+
+	challenge := challenges.Detail{}
+	if err := a.challenges.Get(req, sID, &challenge); err != nil {
+		log.Error().
+			Err(err).
+			Str("ID", id).
+			Msg("error getting challenge")
+
+		if errors.Is(err, challenges.ErrNotFound) {
+			req.JSON(http.StatusNotFound, ErrorResponse{
+				Cause: NotFound,
+			})
+			return
+		}
+
+		req.JSON(http.StatusInternalServerError, ErrorResponse{
+			Cause: InternalServer,
+		})
+		return
+	}
+
+	actor, ok := GetActorContext(req)
+	if !ok {
+		log.Error().
+			Str("ID", challenge.ID.ConvertID()).
+			Msg("failed to get actor from context")
+
+		req.JSON(http.StatusUnauthorized, ErrorResponse{
+			Cause: Unauthorised,
+		})
+		return
+	}
+
+	if challenge.CreatedBy != actor.UserID && !actor.Admin {
+		log.Error().
+			Str("ID", challenge.ID.ConvertID()).
+			Msg("actor is not allowed to update challenge")
+
+		req.JSON(http.StatusForbidden, ErrorResponse{
+			Cause: "not allowed to update challenge",
+		})
+		return
+	}
+
+	if err := a.challenges.Delete(req, sID); err != nil {
 		log.Error().
 			Err(err).
 			Msg("failed to delete challenge")

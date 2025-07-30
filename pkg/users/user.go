@@ -64,7 +64,7 @@ func (svc *Service) Get(ctx context.Context, id service.ID, user interface{}) er
 
 	// Only add challenges if the user is of type User
 	if u, ok := user.(*User); ok {
-		cs := make([]challenges.Challenge, 0)
+		cs := make([]challenges.Detail, 0)
 		if err := svc.challenges.List(ctx, opts, &cs); err != nil {
 			return fmt.Errorf("failed to list challenges for user: %w", err)
 		}

@@ -32,7 +32,7 @@ func (a *API) GetUsers(req *gin.Context) {
 		SetLimit(rawOpts.Max).
 		SetSkip(rawOpts.Page - 1)
 
-	users := []PartialUser{}
+	users := make([]PartialUser, 0, opts.Limit)
 	if err := a.users.List(req, *opts, users); err != nil {
 		log.Error().
 			Err(err).
@@ -92,8 +92,29 @@ func (a *API) PatchUser(req *gin.Context) {
 		})
 		return
 	}
-
 	userID := service.ID(id)
+
+	actor, ok := GetActorContext(req)
+	if !ok {
+		log.Error().
+			Msg("failed to get actor from context")
+
+		req.JSON(http.StatusUnauthorized, ErrorResponse{
+			Cause: Unauthorised,
+		})
+		return
+	}
+
+	if userID != actor.UserID && !actor.Admin {
+		log.Error().
+			Str("ID", userID.ConvertID()).
+			Msg("actor is not allowed to update user")
+
+		req.JSON(http.StatusForbidden, ErrorResponse{
+			Cause: "not allowed to update user",
+		})
+		return
+	}
 
 	// Read body as bytes
 	bb, err := req.GetRawData()
@@ -185,8 +206,31 @@ func (a *API) DeleteUser(req *gin.Context) {
 		})
 		return
 	}
+	userID := service.ID(id)
 
-	if err := a.users.Delete(req, service.ID(id)); err != nil {
+	actor, ok := GetActorContext(req)
+	if !ok {
+		log.Error().
+			Msg("failed to get actor from context")
+
+		req.JSON(http.StatusUnauthorized, ErrorResponse{
+			Cause: Unauthorised,
+		})
+		return
+	}
+
+	if userID != actor.UserID && !actor.Admin {
+		log.Error().
+			Str("ID", userID.ConvertID()).
+			Msg("actor is not allowed to delete user")
+
+		req.JSON(http.StatusForbidden, ErrorResponse{
+			Cause: "not allowed to delete user",
+		})
+		return
+	}
+
+	if err := a.users.Delete(req, userID); err != nil {
 		log.Error().
 			Err(err).
 			Str("userID", id).
@@ -287,6 +331,28 @@ func (a *API) SetChallengeMembership(member bool) gin.HandlerFunc {
 			return
 		}
 
+		actor, ok := GetActorContext(req)
+		if !ok {
+			log.Error().
+				Msg("failed to get actor from context")
+
+			req.JSON(http.StatusUnauthorized, ErrorResponse{
+				Cause: Unauthorised,
+			})
+			return
+		}
+
+		if service.ID(userID) != actor.UserID && !actor.Admin {
+			log.Error().
+				Str("ID", userID).
+				Msg("actor is not allowed to update user challenges")
+
+			req.JSON(http.StatusForbidden, ErrorResponse{
+				Cause: "not allowed to update user challenges",
+			})
+			return
+		}
+
 		challengeID := req.Param("id")
 		if challengeID == "" {
 			req.JSON(http.StatusBadRequest, ErrorResponse{
@@ -322,6 +388,8 @@ func (a *API) SetChallengeMembership(member bool) gin.HandlerFunc {
 			})
 			return
 		}
+
+		req.Status(http.StatusNoContent)
 	}
 }
 

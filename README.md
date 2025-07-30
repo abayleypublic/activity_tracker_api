@@ -14,4 +14,3 @@ cat ./report.json | go-test-report
 - Comments
 - Document README
 - Tidy up logging
-- Convert API to use snake case?
