@@ -117,11 +117,11 @@ func (a *API) Start() error {
 	a.GET("/challenges/:id/members/:userID/progress", a.GetProgress) // public
 
 	// User routes
-	a.GET("/users", a.GetUsers)              // admin
-	a.GET("/users/:userID", a.GetUser)       // auth
-	a.PATCH("/users/:userID", a.PatchUser)   // valid user
-	a.DELETE("/users/:userID", a.DeleteUser) // valid user
-	a.POST("/users", a.PostUser)             // valid user
+	a.GET("/users", a.AdminAuthFilter, a.GetUsers) // admin
+	a.GET("/users/:userID", a.GetUser)             // auth
+	a.PATCH("/users/:userID", a.PatchUser)         // valid user
+	a.DELETE("/users/:userID", a.DeleteUser)       // valid user
+	a.POST("/users", a.PostUser)                   // valid user
 
 	// User activities routes
 	a.POST("/users/:userID/activities", a.PostUserActivity) // valid user
