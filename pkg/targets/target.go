@@ -103,6 +103,7 @@ func (t *RawTarget) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+// resolveType returns a new instance of the target type based on the provided TargetType.
 func resolveType(targetType TargetType) Target {
 	var target Target
 	switch targetType {

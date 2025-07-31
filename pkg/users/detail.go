@@ -13,7 +13,6 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
-// Detail represents the detailed information of a user.
 type Detail struct {
 	ID          service.ID `json:"id" bson:"_id"`
 	FirstName   string     `json:"first_name" bson:"firstName" validate:"required"`
@@ -23,16 +22,15 @@ type Detail struct {
 	Bio         string     `json:"bio" bson:"bio"`
 }
 
-// Users is a wrapper around a MongoDB collection of users.
 type Details struct {
 	*mongo.Collection
 }
 
-// NewUsers creates a new Users instance with the provided MongoDB collection.
 func NewDetails(c *mongo.Collection) *Details {
 	return &Details{c}
 }
 
+// Setup initializes the user detail collection in the database.
 func (svc *Details) Setup(ctx context.Context) error {
 	if err := svc.Database().CreateCollection(ctx, svc.Name()); err != nil {
 		return fmt.Errorf("failed to create user detail collection: %w", err)
@@ -40,7 +38,7 @@ func (svc *Details) Setup(ctx context.Context) error {
 	return nil
 }
 
-// Create adds a new user to the database.
+// Create adds a new user to the database and returns the user's ID.
 func (svc *Details) Create(ctx context.Context, user *Detail) (service.ID, error) {
 	user.ID = service.NewID()
 	user.CreatedDate = time.Now()

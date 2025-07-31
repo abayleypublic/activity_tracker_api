@@ -28,6 +28,7 @@ func New(
 	}
 }
 
+// Setup initializes the challenge service, setting up the underlying database and collections.
 func (svc *Service) Setup(ctx context.Context) error {
 	if err := svc.challenges.Setup(ctx); err != nil {
 		return fmt.Errorf("failed to setup challenges: %w", err)
@@ -40,6 +41,7 @@ func (svc *Service) Setup(ctx context.Context) error {
 	return nil
 }
 
+// Create adds a new challenge to the database and returns the challenge's ID.
 func (svc *Service) Create(ctx context.Context, challenge *Challenge) (service.ID, error) {
 	session, err := svc.challenges.Database().Client().StartSession()
 	if err != nil {
@@ -74,6 +76,7 @@ func (svc *Service) Create(ctx context.Context, challenge *Challenge) (service.I
 	return cID, nil
 }
 
+// Get retrieves a challenge by its ID and populates the challenge's members.
 func (svc *Service) Get(ctx context.Context, id service.ID, challenge interface{}) error {
 	if err := svc.challenges.Get(ctx, id, challenge); err != nil {
 		return fmt.Errorf("failed to get challenge: %w", err)
@@ -122,6 +125,7 @@ func (opts *ListOptions) SetUser(id service.ID) *ListOptions {
 	return opts
 }
 
+// List retrieves challenges based on the given criteria, including memberships for the user if specified.
 func (svc *Service) List(ctx context.Context, opts ListOptions, challenges *[]Detail) error {
 	mems := make([]Membership, 0, opts.Limit)
 
@@ -153,6 +157,7 @@ type SetDetailOperation struct {
 	Detail Detail
 }
 
+// Execute updates a challenge's details in the database.
 func (o SetDetailOperation) Execute(ctx context.Context, details *Details, _ *Memberships) error {
 	if err := details.Update(ctx, o.Detail); err != nil {
 		return fmt.Errorf("failed to update challenge: %w", err)
@@ -166,6 +171,7 @@ type SetMemberOperation struct {
 	Member    bool
 }
 
+// Execute adds or removes a user from a challenge's members based on the Member flag.
 func (o SetMemberOperation) Execute(ctx context.Context, _ *Details, memberships *Memberships) error {
 	if o.Member {
 		now := time.Now()
@@ -194,6 +200,7 @@ func (o SetMemberOperation) Execute(ctx context.Context, _ *Details, memberships
 	return nil
 }
 
+// Update applies a series of operations to the challenge service, executing them in a transaction.
 func (svc *Service) Update(ctx context.Context, operations ...Operation) error {
 	session, err := svc.challenges.Database().Client().StartSession()
 	if err != nil {
@@ -213,6 +220,7 @@ func (svc *Service) Update(ctx context.Context, operations ...Operation) error {
 	return err
 }
 
+// Delete removes a challenge from the database and cleans up associated memberships.
 func (svc *Service) Delete(ctx context.Context, challengeID service.ID) error {
 	session, err := svc.challenges.Database().Client().StartSession()
 	if err != nil {

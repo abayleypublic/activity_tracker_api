@@ -37,6 +37,7 @@ func New(
 	}
 }
 
+// Setup initializes the user service, setting up the underlying database and collections.
 func (svc *Service) Setup(ctx context.Context) error {
 	if err := svc.users.Setup(ctx); err != nil {
 		return fmt.Errorf("failed to setup users: %w", err)
@@ -44,6 +45,7 @@ func (svc *Service) Setup(ctx context.Context) error {
 	return nil
 }
 
+// Create adds a new user to the database and returns the user's ID.
 func (svc *Service) Create(ctx context.Context, user *Detail) (service.ID, error) {
 	id, err := svc.users.Create(ctx, user)
 	if err != nil {
@@ -53,6 +55,7 @@ func (svc *Service) Create(ctx context.Context, user *Detail) (service.ID, error
 	return id, nil
 }
 
+// Get retrieves a user by their ID and populates the user's challenges if they are of type User.
 func (svc *Service) Get(ctx context.Context, id service.ID, user interface{}) error {
 	if err := svc.users.Get(ctx, id, user); err != nil {
 		return fmt.Errorf("failed to get user: %w", err)
@@ -77,6 +80,7 @@ func (svc *Service) Get(ctx context.Context, id service.ID, user interface{}) er
 	return nil
 }
 
+// GetByEmail retrieves a user by their email address.
 func (svc *Service) GetByEmail(ctx context.Context, email string) (*Detail, error) {
 	opts := NewDetailListOptions().
 		SetEmail(email)
@@ -116,6 +120,7 @@ func (opts *ListOptions) SetSkip(skip int64) *ListOptions {
 	return opts
 }
 
+// List retrieves users based on the given options.
 func (svc *Service) List(ctx context.Context, opts ListOptions, users interface{}) error {
 	los := NewDetailListOptions().SetLimit(opts.Limit).SetSkip(opts.Skip)
 	if err := svc.users.List(ctx, *los, &users); err != nil {
@@ -125,6 +130,7 @@ func (svc *Service) List(ctx context.Context, opts ListOptions, users interface{
 	return nil
 }
 
+// Update modifies an existing user in the database.
 func (svc *Service) Update(ctx context.Context, user *Detail) error {
 	if err := svc.users.Update(ctx, *user); err != nil {
 		return fmt.Errorf("failed to update user: %w", err)
@@ -133,6 +139,7 @@ func (svc *Service) Update(ctx context.Context, user *Detail) error {
 	return nil
 }
 
+// Delete removes a user from the database and cleans up associated data.
 func (svc *Service) Delete(ctx context.Context, id service.ID) error {
 	session, err := svc.users.Database().Client().StartSession()
 	if err != nil {

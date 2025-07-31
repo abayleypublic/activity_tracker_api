@@ -27,7 +27,6 @@ type BaseDetail struct {
 	CreatedDate time.Time  `json:"created_date" bson:"createdDate" validate:"required"`
 }
 
-// Detail represents a full challenge, including its members.
 type Detail struct {
 	BaseDetail `json:",inline" bson:",inline"`
 	Target     targets.Target `json:"target" bson:"target"`
@@ -60,16 +59,15 @@ func (d *Detail) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-// Details wraps a MongoDB collection of challenge details.
 type Details struct {
 	*mongo.Collection
 }
 
-// NewDetails creates a new Challenges instance with the provided MongoDB collection.
 func NewDetails(c *mongo.Collection) *Details {
 	return &Details{c}
 }
 
+// Setup initializes the challenge detail collection in the database.
 func (svc *Details) Setup(ctx context.Context) error {
 	if err := svc.Database().CreateCollection(ctx, svc.Name()); err != nil {
 		return fmt.Errorf("failed to create challenge detail collection: %w", err)

@@ -68,6 +68,7 @@ func New(c *mongo.Collection) *Service {
 	return &Service{c}
 }
 
+// Setup initializes the activity service, setting up the underlying database and collections.
 func (svc *Service) Setup(ctx context.Context) error {
 	if err := svc.Database().CreateCollection(ctx, svc.Name()); err != nil {
 		return fmt.Errorf("failed to create activity collection: %w", err)

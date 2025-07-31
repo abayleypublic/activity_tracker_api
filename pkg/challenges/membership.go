@@ -29,6 +29,7 @@ func NewMemberships(c *mongo.Collection) *Memberships {
 	return &Memberships{c}
 }
 
+// Setup initializes the challenge members collection in the database.
 func (svc *Memberships) Setup(ctx context.Context) error {
 	if err := svc.Database().CreateCollection(ctx, svc.Name()); err != nil {
 		return fmt.Errorf("failed to create challenge members collection: %w", err)
