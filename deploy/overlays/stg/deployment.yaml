@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: prod-roam-sa
+  name: stg-roam-sa
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -19,7 +19,7 @@ spec:
       labels:
         app: api
     spec:
-      serviceAccountName: prod-roam-sa
+      serviceAccountName: stg-roam-sa
       containers:
         - name: api
           image: europe-west2-docker.pkg.dev/portfolio-463406/docker-repository/activity_tracker_api
@@ -27,11 +27,11 @@ spec:
             - containerPort: 80
           env:
             - name: ENVIRONMENT
-              value: prod
+              value: stg
             - name: PORT
               value: "80"
             - name: DATABASE_NAME
-              value: "prod_activity_tracker"
+              value: "stg_activity_tracker"
           envFrom:
             - secretRef:
                 name: api-secrets
@@ -58,4 +58,4 @@ spec:
   data:
     - secretKey: MONGODB_URI
       remoteRef:
-        key: prod_roam_mongodb_uri
+        key: stg_roam_mongodb_uri

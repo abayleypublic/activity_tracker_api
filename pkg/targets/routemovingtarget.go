@@ -6,8 +6,8 @@ import (
 	"math"
 
 	"github.com/AustinBayley/activity_tracker_api/pkg/activities"
-	"github.com/AustinBayley/activity_tracker_api/pkg/targets/locations"
-	"go.mongodb.org/mongo-driver/bson"
+	"github.com/AustinBayley/activity_tracker_api/pkg/locations"
+	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 var (
@@ -54,10 +54,9 @@ type RouteMovingTarget struct {
 }
 
 func (t *RouteMovingTarget) MarshalBSON() ([]byte, error) {
-
 	type RawRouteMovingTarget RouteMovingTarget
 
-	if t.Route.Waypoints == nil || len(t.Route.Waypoints) < 2 {
+	if len(t.Route.Waypoints) < 2 {
 		return bson.Marshal((*RawRouteMovingTarget)(t))
 	}
 
@@ -78,7 +77,6 @@ func (t *RouteMovingTarget) Type() TargetType {
 }
 
 func (t *RouteMovingTarget) Evaluate(ctx context.Context, acts []activities.Activity) (Progress, error) {
-
 	// Distance is the distance travelled by the user
 	var distance float64 = 0
 	for _, act := range acts {

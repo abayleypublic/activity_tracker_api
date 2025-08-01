@@ -2,145 +2,457 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
+	"slices"
+	"strings"
 
+	"github.com/AustinBayley/activity_tracker_api/pkg/activities"
 	"github.com/AustinBayley/activity_tracker_api/pkg/challenges"
 	"github.com/AustinBayley/activity_tracker_api/pkg/service"
 	jsonpatch "github.com/evanphx/json-patch/v5"
-	"github.com/monzo/typhon"
+	"github.com/gin-gonic/gin"
+	"github.com/rs/zerolog/log"
 )
 
-func (a *API) GetChallenges(req typhon.Request) Response {
-
-	cs := []challenges.Challenge{}
-	if err := a.challenges.ReadAll(req.Context, &cs); err != nil {
-		return NewResponse(NotFound(err.Error(), err))
+func (a *API) GetChallenges(req *gin.Context) {
+	rawOpts := ListOptions{}
+	if err := req.BindQuery(&rawOpts); err != nil {
+		log.Error().
+			Err(err).
+			Msg("error binding query parameters")
 	}
 
-	return NewResponse(cs)
+	opts := challenges.NewListOptions().
+		SetLimit(rawOpts.Max).
+		SetSkip(rawOpts.Page - 1)
 
+	cs := []challenges.Detail{}
+	if err := a.challenges.List(req, *opts, &cs); err != nil {
+		log.Error().
+			Err(err).
+			Msg("error listing challenges")
+
+		req.JSON(http.StatusInternalServerError, ErrorResponse{
+			Cause: InternalServer,
+		})
+		return
+	}
+
+	req.JSON(http.StatusOK, cs)
 }
 
-func (a *API) GetChallenge(req typhon.Request) Response {
-
-	id, ok := a.Params(req)["id"]
-	if !ok {
-		return NewResponse(BadRequest("id not supplied", nil))
+func (a *API) GetChallenge(req *gin.Context) {
+	id := req.Param("id")
+	if id == "" {
+		req.JSON(http.StatusBadRequest, ErrorResponse{
+			Cause: "challenge ID not supplied",
+		})
+		return
 	}
 
 	challenge := challenges.Challenge{}
-	if err := a.challenges.Read(req.Context, service.ID(id), &challenge); err != nil {
-		return NewResponse(NotFound(err.Error(), err))
+	if err := a.challenges.Get(req, service.ID(id), &challenge); err != nil {
+		log.Error().
+			Err(err).
+			Str("challengeID", id).
+			Msg("error getting challenge")
+
+		if errors.Is(err, challenges.ErrNotFound) {
+			req.JSON(http.StatusNotFound, ErrorResponse{
+				Cause: NotFound,
+			})
+			return
+		}
+
+		req.JSON(http.StatusInternalServerError, ErrorResponse{
+			Cause: InternalServer,
+		})
+		return
 	}
 
-	return NewResponse(challenge)
-
+	req.JSON(http.StatusOK, challenge)
 }
 
-func (a *API) PostChallenge(req typhon.Request) Response {
-
+func (a *API) PostChallenge(req *gin.Context) {
 	var challenge challenges.Challenge
-	if err := req.Decode(&challenge); err != nil {
-		return NewResponse(BadRequest("error decoding challenge", err))
-	}
-	challenge.ID = service.NewID()
+	if err := req.BindJSON(&challenge); err != nil {
+		log.Error().
+			Err(err).
+			Msg("error binding JSON to challenge")
 
-	id, err := a.challenges.Create(req.Context, challenge)
+		req.JSON(http.StatusBadRequest, ErrorResponse{
+			Cause: "invalid request body",
+		})
+		return
+	}
+
+	actor, ok := GetActorContext(req)
+	if !ok {
+		log.Error().
+			Str("ID", challenge.ID.ConvertID()).
+			Msg("failed to get actor from context")
+
+		req.JSON(http.StatusUnauthorized, ErrorResponse{
+			Cause: Unauthorised,
+		})
+		return
+	}
+
+	challenge.CreatedBy = actor.UserID
+	challenge.Members = []service.ID{
+		actor.UserID,
+	}
+
+	cID, err := a.challenges.Create(req, &challenge)
 	if err != nil {
-		return NewResponse(InternalServer(err.Error(), err))
+		log.Error().
+			Err(err).
+			Msg("error creating challenge")
+
+		if errors.Is(err, challenges.ErrValidation) {
+			req.JSON(http.StatusUnprocessableEntity, ErrorResponse{
+				Cause: Validation,
+			})
+			return
+		}
+
+		req.JSON(http.StatusInternalServerError, ErrorResponse{
+			Cause: InternalServer,
+		})
+		return
 	}
+	challenge.ID = cID
 
-	return NewResponse(id)
-
+	req.JSON(http.StatusCreated, challenge)
 }
 
-func (a *API) PatchChallenge(req typhon.Request) Response {
-
-	// Get user ID
-	id, ok := a.Params(req)["id"]
-	if !ok {
-		return NewResponse(BadRequest("id not supplied", nil))
+func (a *API) PatchChallenge(req *gin.Context) {
+	id := req.Param("id")
+	if id == "" {
+		req.JSON(http.StatusBadRequest, ErrorResponse{
+			Cause: "challenge ID not supplied",
+		})
+		return
 	}
 
 	challengeID := service.ID(id)
 
-	// Get body & store as slice of bytes
-	bb, err := req.BodyBytes(true)
+	// Read body as bytes
+	bb, err := req.GetRawData()
 	if err != nil {
-		return NewResponse(BadRequest(err.Error(), err))
+		req.JSON(http.StatusBadRequest, ErrorResponse{
+			Cause: "error reading request body",
+		})
+		return
 	}
 
-	// Stored challenge
-	challenge := challenges.Challenge{}
-	if err := a.challenges.Read(req.Context, challengeID, &challenge); err != nil {
-		return NewResponse(NotFound(err.Error(), err))
-	}
-
-	// Stored challenge as slice of bytes
-	subb, err := json.Marshal(challenge)
-	if err != nil {
-		return NewResponse(UnprocessableEntity(err.Error(), err))
-	}
-
-	// Decode requested patch
+	// Decode patch
 	patch, err := jsonpatch.DecodePatch(bb)
 	if err != nil {
-		return NewResponse(UnprocessableEntity("could not decode request", err))
+		req.JSON(http.StatusUnprocessableEntity, ErrorResponse{
+			Cause: "could not decode patch",
+		})
+		return
 	}
 
-	// Apply patch to stored challenge to get modified document
-	modified, err := patch.Apply(subb)
-	if err != nil {
-		return NewResponse(UnprocessableEntity("could not apply patch", err))
+	operations := []challenges.Operation{}
+
+	// Iterates to find any operations that set the members
+	for i, op := range patch {
+		path, err := op.Path()
+		if err != nil {
+			req.JSON(http.StatusUnprocessableEntity, ErrorResponse{
+				Cause: "could not get path from operation",
+			})
+			return
+		}
+
+		if strings.HasPrefix(path, "/members") {
+			value, err := op.ValueInterface()
+			if err != nil || value == nil {
+				req.JSON(http.StatusUnprocessableEntity, ErrorResponse{
+					Cause: "could not get value from operation",
+				})
+				return
+			}
+
+			id, ok := value.(string)
+			if !ok {
+				req.JSON(http.StatusUnprocessableEntity, ErrorResponse{
+					Cause: "value is not a string",
+				})
+				return
+			}
+
+			operations = append(operations, challenges.SetMemberOperation{
+				Challenge: challengeID,
+				User:      service.ID(id),
+				Member:    op.Kind() == "add",
+			})
+
+			patch = append(patch[:i], patch[i+1:]...)
+		}
 	}
 
-	// Unmarshal modified document into challenge struct
-	c := challenges.Challenge{}
-	if err = json.Unmarshal(modified, &challenge); err != nil {
-		return NewResponse(UnprocessableEntity("error unmarshalling challenge", err))
+	challenge := challenges.Detail{}
+	if err := a.challenges.Get(req, challengeID, &challenge); err != nil {
+		log.Error().
+			Err(err).
+			Str("ID", id).
+			Msg("error getting challenge")
+
+		if errors.Is(err, challenges.ErrNotFound) {
+			req.JSON(http.StatusNotFound, ErrorResponse{
+				Cause: NotFound,
+			})
+			return
+		}
+
+		req.JSON(http.StatusInternalServerError, ErrorResponse{
+			Cause: InternalServer,
+		})
+		return
 	}
 
-	// Update user
-	if err = a.challenges.Update(req.Context, c); err != nil {
-		return NewResponse(InternalServer(err.Error(), err))
+	actor, ok := GetActorContext(req)
+	if !ok {
+		log.Error().
+			Str("ID", challenge.ID.ConvertID()).
+			Msg("failed to get actor from context")
+
+		req.JSON(http.StatusUnauthorized, ErrorResponse{
+			Cause: Unauthorised,
+		})
+		return
 	}
 
-	return NewResponse(c)
+	if challenge.CreatedBy != actor.UserID && !actor.Admin {
+		log.Error().
+			Str("ID", challenge.ID.ConvertID()).
+			Msg("actor is not allowed to update challenge")
 
+		req.JSON(http.StatusForbidden, ErrorResponse{
+			Cause: "not allowed to update challenge",
+		})
+		return
+	}
+
+	if len(patch) > 0 {
+		// Marshal stored challenge to bytes
+		subb, err := json.Marshal(challenge)
+		if err != nil {
+			req.JSON(http.StatusUnprocessableEntity, ErrorResponse{
+				Cause: "error marshalling challenge",
+			})
+			return
+		}
+
+		// Decode patch
+		patch, err := jsonpatch.DecodePatch(bb)
+		if err != nil {
+			req.JSON(http.StatusUnprocessableEntity, ErrorResponse{
+				Cause: "could not decode patch",
+			})
+			return
+		}
+
+		// Apply patch
+		modified, err := patch.Apply(subb)
+		if err != nil {
+			req.JSON(http.StatusUnprocessableEntity, ErrorResponse{
+				Cause: "could not apply patch",
+			})
+			return
+		}
+
+		// Unmarshal modified challenge
+		if err := json.Unmarshal(modified, &challenge); err != nil {
+			req.JSON(http.StatusUnprocessableEntity, ErrorResponse{
+				Cause: "error unmarshalling challenge",
+			})
+			return
+		}
+
+		operations = append(operations, challenges.SetDetailOperation{
+			Detail: challenge,
+		})
+	}
+
+	// Update challenge
+	if err := a.challenges.Update(req, operations...); err != nil {
+		log.Error().
+			Err(err).
+			Str("ID", id).
+			Msg("error updating challenge")
+
+		switch {
+		case errors.Is(err, challenges.ErrNotFound):
+			req.JSON(http.StatusNotFound, ErrorResponse{
+				Cause: NotFound,
+			})
+			return
+		case errors.Is(err, challenges.ErrValidation):
+			req.JSON(http.StatusUnprocessableEntity, ErrorResponse{
+				Cause: Validation,
+			})
+			return
+		}
+
+		req.JSON(http.StatusInternalServerError, ErrorResponse{
+			Cause: InternalServer,
+		})
+		return
+	}
+
+	req.JSON(http.StatusNoContent, nil)
 }
 
-func (a *API) DeleteChallenge(req typhon.Request) Response {
+func (a *API) DeleteChallenge(req *gin.Context) {
+	id := req.Param("id")
+	if id == "" {
+		req.JSON(http.StatusBadRequest, ErrorResponse{
+			Cause: "challenge ID not supplied",
+		})
+		return
+	}
 
-	id, ok := a.Params(req)["id"]
+	sID := service.ID(id)
+
+	challenge := challenges.Detail{}
+	if err := a.challenges.Get(req, sID, &challenge); err != nil {
+		log.Error().
+			Err(err).
+			Str("ID", id).
+			Msg("error getting challenge")
+
+		if errors.Is(err, challenges.ErrNotFound) {
+			req.JSON(http.StatusNotFound, ErrorResponse{
+				Cause: NotFound,
+			})
+			return
+		}
+
+		req.JSON(http.StatusInternalServerError, ErrorResponse{
+			Cause: InternalServer,
+		})
+		return
+	}
+
+	actor, ok := GetActorContext(req)
 	if !ok {
-		return NewResponse(BadRequest("id not supplied", nil))
+		log.Error().
+			Str("ID", challenge.ID.ConvertID()).
+			Msg("failed to get actor from context")
+
+		req.JSON(http.StatusUnauthorized, ErrorResponse{
+			Cause: Unauthorised,
+		})
+		return
 	}
 
-	if err := a.challenges.Delete(req.Context, service.ID(id)); err != nil {
-		return NewResponse(NotFound(err.Error(), err))
+	if challenge.CreatedBy != actor.UserID && !actor.Admin {
+		log.Error().
+			Str("ID", challenge.ID.ConvertID()).
+			Msg("actor is not allowed to update challenge")
+
+		req.JSON(http.StatusForbidden, ErrorResponse{
+			Cause: "not allowed to update challenge",
+		})
+		return
 	}
 
-	return NewResponseWithCode(nil, http.StatusNoContent)
+	if err := a.challenges.Delete(req, sID); err != nil {
+		log.Error().
+			Err(err).
+			Msg("failed to delete challenge")
 
+		req.JSON(http.StatusInternalServerError, ErrorResponse{
+			Cause: InternalServer,
+		})
+		return
+	}
+
+	req.JSON(http.StatusNoContent, nil)
 }
 
-func (a *API) GetProgress(req typhon.Request) Response {
-
-	id, ok := a.Params(req)["id"]
-	if !ok {
-		return NewResponse(BadRequest("challenge ID not supplied", nil))
+func (a *API) GetProgress(req *gin.Context) {
+	id := req.Param("id")
+	if id == "" {
+		req.JSON(http.StatusBadRequest, ErrorResponse{
+			Cause: "challenge ID not supplied",
+		})
+		return
 	}
 
-	userID, ok := a.Params(req)["userID"]
-	if !ok {
-		return NewResponse(BadRequest("user ID not supplied", nil))
+	uID := req.Param("userID")
+	if uID == "" {
+		req.JSON(http.StatusBadRequest, ErrorResponse{
+			Cause: "user ID not supplied",
+		})
+		return
 	}
 
-	progress, err := a.challenges.GetProgress(req.Context, service.ID(id), service.ID(userID))
+	userID := service.ID(uID)
+
+	challenge := challenges.Challenge{}
+	if err := a.challenges.Get(req, service.ID(id), &challenge); err != nil {
+		log.Error().
+			Err(err).
+			Str("challengeID", id).
+			Msg("error getting challenge")
+
+		if errors.Is(err, challenges.ErrNotFound) {
+			req.JSON(http.StatusNotFound, ErrorResponse{
+				Cause: NotFound,
+			})
+			return
+		}
+
+		req.JSON(http.StatusInternalServerError, ErrorResponse{
+			Cause: InternalServer,
+		})
+		return
+	}
+
+	if !slices.Contains(challenge.Members, userID) {
+		req.JSON(http.StatusNotFound, ErrorResponse{
+			Cause: NotFound,
+		})
+		return
+	}
+
+	opts := activities.ListOptions{
+		User: &userID,
+	}
+
+	acts := []activities.Activity{}
+	if err := a.activities.List(req, opts, &acts); err != nil {
+		log.Error().
+			Err(err).
+			Str("userID", string(userID)).
+			Str("challengeID", id).
+			Msg("error listing user activities")
+
+		req.JSON(http.StatusInternalServerError, ErrorResponse{
+			Cause: InternalServer,
+		})
+		return
+	}
+
+	progress, err := challenge.Target.Evaluate(req, acts)
 	if err != nil {
-		return NewResponse(InternalServer(err.Error(), err))
+		log.Error().
+			Err(err).
+			Str("userID", string(userID)).
+			Str("challengeID", id).
+			Msg("error evaluating challenge progress")
+
+		req.JSON(http.StatusInternalServerError, ErrorResponse{
+			Cause: InternalServer,
+		})
+		return
 	}
 
-	return NewResponse(progress)
-
+	req.JSON(http.StatusOK, progress)
 }

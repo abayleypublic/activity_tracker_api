@@ -2,38 +2,81 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 
+	"github.com/AustinBayley/activity_tracker_api/pkg/challenges"
 	"github.com/AustinBayley/activity_tracker_api/pkg/service"
 	"github.com/AustinBayley/activity_tracker_api/pkg/users"
 	jsonpatch "github.com/evanphx/json-patch"
-	"github.com/monzo/typhon"
+	"github.com/gin-gonic/gin"
+	"github.com/rs/zerolog/log"
 )
 
-func (a *API) GetUsers(req typhon.Request) Response {
-
-	users := []users.PartialUser{}
-	if err := a.users.ReadAllRaw(req.Context, &users); err != nil {
-		return NewResponse(NotFound(err.Error(), err))
-	}
-
-	return NewResponse(users)
+type PartialUser struct {
+	ID        service.ID `json:"id" bson:"_id,omitempty"`
+	FirstName string     `json:"firstName" bson:"firstName"`
+	LastName  string     `json:"lastName" bson:"lastName"`
+	Bio       string     `json:"bio" bson:"bio"`
 }
 
-func (a *API) GetUser(req typhon.Request) Response {
-
-	id, ok := a.Params(req)["userID"]
-	if !ok {
-		return NewResponse(BadRequest("id not supplied", nil))
+func (a *API) GetUsers(req *gin.Context) {
+	rawOpts := ListOptions{}
+	if err := req.BindQuery(&rawOpts); err != nil {
+		log.Error().
+			Err(err).
+			Msg("error binding query parameters")
 	}
 
-	user, err := a.users.ReadUser(req.Context, service.ID(id))
-	if err != nil {
-		return NewResponse(NotFound(err.Error(), err))
+	opts := users.NewListOptions().
+		SetLimit(rawOpts.Max).
+		SetSkip(rawOpts.Page - 1)
+
+	users := make([]PartialUser, 0, opts.Limit)
+	if err := a.users.List(req, *opts, users); err != nil {
+		log.Error().
+			Err(err).
+			Msg("error listing users")
+
+		req.JSON(http.StatusInternalServerError, ErrorResponse{
+			Cause: InternalServer,
+		})
+		return
 	}
 
-	return NewResponse(user)
+	req.JSON(http.StatusOK, users)
+}
 
+func (a *API) GetUser(req *gin.Context) {
+	id := req.Param("userID")
+	if id == "" {
+		req.JSON(http.StatusBadRequest, ErrorResponse{
+			Cause: "user ID not supplied",
+		})
+		return
+	}
+
+	user := PartialUser{}
+	if err := a.users.Get(req, service.ID(id), &user); err != nil {
+		log.Error().
+			Err(err).
+			Str("userID", id).
+			Msg("error getting user")
+
+		if errors.Is(err, users.ErrNotFound) {
+			req.JSON(http.StatusNotFound, ErrorResponse{
+				Cause: NotFound,
+			})
+			return
+		}
+
+		req.JSON(http.StatusInternalServerError, ErrorResponse{
+			Cause: InternalServer,
+		})
+		return
+	}
+
+	req.JSON(http.StatusOK, user)
 }
 
 // PatchUser updates an existing user with the given ID using a JSON merge patch.
@@ -41,173 +84,355 @@ func (a *API) GetUser(req typhon.Request) Response {
 // Returns a 400 Bad Request error if the ID is not supplied or if there is an error decoding the user.
 // Returns a 404 Not Found error if the user with the given ID does not exist or if there is an error marshalling or unmarshalling the user.
 // Returns a 204 No Content response if the user is successfully updated.
-func (a *API) PatchUser(req typhon.Request) Response {
-
-	// Get user ID
-	id, ok := a.Params(req)["userID"]
-	if !ok {
-		return NewResponse(BadRequest("id not supplied", nil))
+func (a *API) PatchUser(req *gin.Context) {
+	id := req.Param("userID")
+	if id == "" {
+		req.JSON(http.StatusBadRequest, ErrorResponse{
+			Cause: "user ID not supplied",
+		})
+		return
 	}
-
 	userID := service.ID(id)
 
-	// Get body & store as slice of bytes
-	bb, err := req.BodyBytes(true)
-	if err != nil {
-		return NewResponse(BadRequest(err.Error(), err))
+	actor, ok := GetActorContext(req)
+	if !ok {
+		log.Error().
+			Msg("failed to get actor from context")
+
+		req.JSON(http.StatusUnauthorized, ErrorResponse{
+			Cause: Unauthorised,
+		})
+		return
 	}
 
-	// Stored user
-	user := users.User{}
-	err = a.users.Read(req.Context, userID, &user)
-	if err != nil {
-		return NewResponse(NotFound(err.Error(), err))
+	if userID != actor.UserID && !actor.Admin {
+		log.Error().
+			Str("ID", userID.ConvertID()).
+			Msg("actor is not allowed to update user")
+
+		req.JSON(http.StatusForbidden, ErrorResponse{
+			Cause: "not allowed to update user",
+		})
+		return
 	}
 
-	// Stored user as slice of bytes
+	// Read body as bytes
+	bb, err := req.GetRawData()
+	if err != nil {
+		req.JSON(http.StatusBadRequest, ErrorResponse{
+			Cause: "error reading request body",
+		})
+		return
+	}
+
+	// Get stored user
+	user := users.Detail{}
+	if err := a.users.Get(req, userID, &user); err != nil {
+		if errors.Is(err, users.ErrNotFound) {
+			req.JSON(http.StatusNotFound, ErrorResponse{
+				Cause: NotFound,
+			})
+			return
+		}
+		req.JSON(http.StatusInternalServerError, ErrorResponse{
+			Cause: InternalServer,
+		})
+		return
+	}
+
+	// Marshal stored user to bytes
 	subb, err := json.Marshal(user)
 	if err != nil {
-		return NewResponse(UnprocessableEntity(err.Error(), err))
+		req.JSON(http.StatusUnprocessableEntity, ErrorResponse{
+			Cause: "error marshalling user",
+		})
+		return
 	}
 
-	// Decode requested patch
+	// Decode patch
 	patch, err := jsonpatch.DecodePatch(bb)
 	if err != nil {
-		return NewResponse(UnprocessableEntity("could not decode request", err))
+		req.JSON(http.StatusUnprocessableEntity, ErrorResponse{
+			Cause: "could not decode patch",
+		})
+		return
 	}
 
-	// Apply patch to stored user to get modified document
+	// Apply patch
 	modified, err := patch.Apply(subb)
 	if err != nil {
-		return NewResponse(UnprocessableEntity("could not apply patch", err))
+		req.JSON(http.StatusUnprocessableEntity, ErrorResponse{
+			Cause: "could not apply patch",
+		})
+		return
 	}
 
-	// Unmarshal modified document into user struct
-	user = users.User{}
-	if err = json.Unmarshal(modified, &user); err != nil {
-		return NewResponse(UnprocessableEntity("error unmarshalling user", err))
+	// Unmarshal modified user
+	if err := json.Unmarshal(modified, &user); err != nil {
+		req.JSON(http.StatusUnprocessableEntity, ErrorResponse{
+			Cause: "error unmarshalling user",
+		})
+		return
 	}
 
 	// Update user
-	if err = a.users.Update(req.Context, user); err != nil {
-		return NewResponse(InternalServer(err.Error(), err))
+	if err := a.users.Update(req, &user); err != nil {
+		log.Error().
+			Err(err).
+			Str("userID", string(user.ID)).
+			Msg("error updating user")
+
+		switch {
+		case errors.Is(err, users.ErrNotFound):
+			req.JSON(http.StatusNotFound, ErrorResponse{
+				Cause: NotFound,
+			})
+			return
+		case errors.Is(err, users.ErrValidation):
+			req.JSON(http.StatusUnprocessableEntity, ErrorResponse{
+				Cause: Validation,
+			})
+			return
+		}
+
+		req.JSON(http.StatusInternalServerError, ErrorResponse{
+			Cause: InternalServer,
+		})
+		return
 	}
 
-	return NewResponse(user)
-
+	req.JSON(http.StatusNoContent, nil)
 }
 
-func (a *API) DeleteUser(req typhon.Request) Response {
+func (a *API) DeleteUser(req *gin.Context) {
+	id := req.Param("userID")
+	if id == "" {
+		req.JSON(http.StatusBadRequest, ErrorResponse{
+			Cause: "user ID not supplied",
+		})
+		return
+	}
+	userID := service.ID(id)
 
-	id, ok := a.Params(req)["userID"]
+	actor, ok := GetActorContext(req)
 	if !ok {
-		return NewResponse(BadRequest("id not supplied", nil))
+		log.Error().
+			Msg("failed to get actor from context")
+
+		req.JSON(http.StatusUnauthorized, ErrorResponse{
+			Cause: Unauthorised,
+		})
+		return
 	}
 
-	if err := a.users.Delete(req.Context, service.ID(id)); err != nil {
-		return NewResponse(NotFound(err.Error(), err))
+	if userID != actor.UserID && !actor.Admin {
+		log.Error().
+			Str("ID", userID.ConvertID()).
+			Msg("actor is not allowed to delete user")
+
+		req.JSON(http.StatusForbidden, ErrorResponse{
+			Cause: "not allowed to delete user",
+		})
+		return
 	}
 
-	return NewResponseWithCode(nil, http.StatusNoContent)
+	if err := a.users.Delete(req, userID); err != nil {
+		log.Error().
+			Err(err).
+			Str("userID", id).
+			Msg("error deleting user")
 
+		if errors.Is(err, users.ErrNotFound) {
+			req.JSON(http.StatusNotFound, ErrorResponse{
+				Cause: NotFound,
+			})
+			return
+		}
+
+		req.JSON(http.StatusInternalServerError, ErrorResponse{
+			Cause: InternalServer,
+		})
+		return
+	}
+
+	req.JSON(http.StatusNoContent, nil)
 }
 
-func (a *API) PutUser(req typhon.Request) Response {
+func (a *API) PostUser(req *gin.Context) {
+	user := users.Detail{}
+	if err := req.BindJSON(&user); err != nil {
+		req.JSON(http.StatusBadRequest, ErrorResponse{
+			Cause: "error binding user data",
+		})
+		return
+	}
+	user.ID = service.NewID()
 
-	id, ok := a.Params(req)["userID"]
+	actor, ok := GetActorContext(req)
 	if !ok {
-		return NewResponse(BadRequest("id not supplied", nil))
+		log.Error().
+			Msg("error getting actor context")
+
+		req.JSON(http.StatusUnauthorized, ErrorResponse{
+			Cause: NotAuthorised,
+		})
+		return
+	}
+
+	if actor.UserID != "" && !actor.Admin {
+		log.Error().
+			Msg("user already exists")
+
+		req.JSON(http.StatusConflict, ErrorResponse{
+			Cause: Conflict,
+		})
+
+		return
+	}
+
+	if user.Email != actor.Email && !actor.Admin {
+		req.JSON(http.StatusBadRequest, ErrorResponse{
+			Cause: "email does not match authenticated user",
+		})
+		return
+	}
+
+	oID, err := a.users.Create(req, &user)
+	if err != nil {
+		log.Error().
+			Err(err).
+			Str("email", user.Email).
+			Msg("error creating user")
+
+		switch {
+		case errors.Is(err, users.ErrAlreadyExists):
+			req.JSON(http.StatusConflict, ErrorResponse{
+				Cause: "user already exists",
+			})
+			return
+		case errors.Is(err, users.ErrValidation):
+			req.JSON(http.StatusUnprocessableEntity, ErrorResponse{
+				Cause: Validation,
+			})
+			return
+		}
+
+		req.JSON(http.StatusInternalServerError, ErrorResponse{
+			Cause: InternalServer,
+		})
+		return
+	}
+	user.ID = oID
+
+	req.JSON(http.StatusCreated, user)
+}
+
+func (a *API) DownloadUserData(req *gin.Context) {
+	req.JSON(http.StatusNotImplemented, ErrorResponse{
+		Cause: "not implemented",
+	})
+}
+
+func (a *API) SetChallengeMembership(member bool) gin.HandlerFunc {
+	return func(req *gin.Context) {
+		userID := req.Param("userID")
+		if userID == "" {
+			req.JSON(http.StatusBadRequest, ErrorResponse{
+				Cause: "user ID not supplied",
+			})
+			return
+		}
+
+		actor, ok := GetActorContext(req)
+		if !ok {
+			log.Error().
+				Msg("failed to get actor from context")
+
+			req.JSON(http.StatusUnauthorized, ErrorResponse{
+				Cause: Unauthorised,
+			})
+			return
+		}
+
+		if service.ID(userID) != actor.UserID && !actor.Admin {
+			log.Error().
+				Str("ID", userID).
+				Msg("actor is not allowed to update user challenges")
+
+			req.JSON(http.StatusForbidden, ErrorResponse{
+				Cause: "not allowed to update user challenges",
+			})
+			return
+		}
+
+		challengeID := req.Param("id")
+		if challengeID == "" {
+			req.JSON(http.StatusBadRequest, ErrorResponse{
+				Cause: "challenge ID not supplied",
+			})
+			return
+		}
+
+		op := challenges.SetMemberOperation{
+			User:      service.ID(userID),
+			Challenge: service.ID(challengeID),
+			Member:    member,
+		}
+
+		if err := a.challenges.Update(req, op); err != nil {
+			log.Error().
+				Err(err).
+				Str("userID", userID).
+				Str("challengeID", challengeID).
+				Bool("member", member).
+				Msg("error setting challenge membership")
+
+			switch err {
+			case challenges.ErrNotFound:
+				req.JSON(http.StatusNotFound, ErrorResponse{
+					Cause: NotFound,
+				})
+				return
+			}
+
+			req.JSON(http.StatusInternalServerError, ErrorResponse{
+				Cause: InternalServer,
+			})
+			return
+		}
+
+		req.Status(http.StatusNoContent)
+	}
+}
+
+func (a *API) GetProfile(req *gin.Context) {
+	ctx, ok := GetActorContext(req)
+	if !ok {
+		req.JSON(http.StatusUnauthorized, ErrorResponse{
+			Cause: NotAuthorised,
+		})
+		return
 	}
 
 	user := users.User{}
-	if err := req.Decode(&user); err != nil {
-		return NewResponse(UnprocessableEntity("error decoding user", err))
-	}
+	if err := a.users.Get(req, ctx.UserID, &user); err != nil {
+		log.Error().
+			Err(err).
+			Str("userID", string(ctx.UserID)).
+			Msg("error getting user profile")
 
-	if user.ID != service.ID(id) {
-		return NewResponse(BadRequest("id in body does not match id in url", nil))
-	}
-
-	res, err := a.users.Create(req.Context, user)
-	if err != nil {
-		switch err {
-		case service.ErrResourceAlreadyExists:
-			return NewResponse(Conflict("user already exists", err))
-		default:
-			return NewResponse(InternalServer("error creating user", err))
+		if errors.Is(err, users.ErrNotFound) {
+			req.JSON(http.StatusNotFound, ErrorResponse{
+				Cause: NotFound,
+			})
+			return
 		}
+
+		req.JSON(http.StatusInternalServerError, ErrorResponse{
+			Cause: InternalServer,
+		})
+		return
 	}
 
-	return NewResponseWithCode(res, http.StatusOK)
-
-}
-
-func (a *API) DownloadUserData(req typhon.Request) Response {
-
-	return NewResponse("OK")
-
-}
-
-func (a *API) JoinChallenge(req typhon.Request) Response {
-
-	userID, ok := a.Params(req)["userID"]
-	if !ok {
-		return NewResponse(BadRequest("user id not supplied", nil))
-	}
-
-	id, ok := a.Params(req)["id"]
-	if !ok {
-		return NewResponse(BadRequest("challenge id not supplied", nil))
-	}
-
-	_, err := a.users.JoinChallenge(req.Context, service.ID(userID), service.ID(id))
-	if err != nil {
-		switch err {
-		case service.ErrResourceAlreadyExists:
-			return NewResponse(Conflict(err.Error(), err))
-		}
-		return NewResponse(InternalServer(err.Error(), err))
-	}
-
-	return NewResponseWithCode(nil, http.StatusNoContent)
-}
-
-func (a *API) LeaveChallenge(req typhon.Request) Response {
-
-	userID, ok := a.Params(req)["userID"]
-	if !ok {
-		return NewResponse(BadRequest("user id not supplied", nil))
-	}
-
-	id, ok := a.Params(req)["id"]
-	if !ok {
-		return NewResponse(BadRequest("challenge id not supplied", nil))
-	}
-
-	err := a.users.LeaveChallenge(req.Context, service.ID(userID), service.ID(id))
-	if err != nil {
-		switch err {
-		case service.ErrResourceNotFound:
-			return NewResponse(NotFound(err.Error(), err))
-		}
-		return NewResponse(InternalServer(err.Error(), err))
-	}
-
-	return NewResponseWithCode(nil, http.StatusNoContent)
-}
-
-func (a *API) GetProfile(req typhon.Request) Response {
-
-	u, err := service.GetActorContext(req.Context)
-	if err != nil {
-		return NewResponse(Unauthorized("could not determine user", err))
-	}
-
-	user := users.User{}
-	if err = a.users.Read(req.Context, u.UserID, &user); err != nil {
-		return NewResponse(NotFound(err.Error(), err))
-	}
-
-	return NewResponse(user)
-
+	req.JSON(http.StatusOK, user)
 }

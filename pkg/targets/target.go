@@ -7,7 +7,7 @@ import (
 	"reflect"
 
 	"github.com/AustinBayley/activity_tracker_api/pkg/activities"
-	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 var (
@@ -101,6 +101,7 @@ func (t *RawTarget) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+// resolveType returns a new instance of the target type based on the provided TargetType.
 func resolveType(targetType TargetType) Target {
 	var target Target
 	switch targetType {

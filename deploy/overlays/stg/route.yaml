@@ -1,13 +1,13 @@
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
-  name: prod-activity-public
+  name: stg-activity-public
 spec:
   parentRefs:
     - name: default-gateway
       namespace: envoy-gateway-system
   hostnames:
-    - "activity.austinbayley.co.uk"
+    - "activity.stg.austinbayley.co.uk"
   rules:
     - matches:
         - path:
@@ -24,13 +24,13 @@ spec:
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
-  name: prod-activity-protected
+  name: stg-activity-protected
 spec:
   parentRefs:
     - name: default-gateway
       namespace: envoy-gateway-system
   hostnames:
-    - "activity.austinbayley.co.uk"
+    - "activity.stg.austinbayley.co.uk"
   rules:
     - matches:
         - path:
@@ -43,13 +43,13 @@ spec:
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
-  name: prod-activity-oauth
+  name: stg-activity-oauth
 spec:
   parentRefs:
     - name: default-gateway
       namespace: envoy-gateway-system
   hostnames:
-    - "activity.austinbayley.co.uk"
+    - "activity.stg.austinbayley.co.uk"
   rules:
     - matches:
         - path:
@@ -57,5 +57,5 @@ spec:
             value: /oauth2
       backendRefs:
         - name: oauth2-proxy
-          namespace: prod-auth
+          namespace: stg-auth
           port: 4180

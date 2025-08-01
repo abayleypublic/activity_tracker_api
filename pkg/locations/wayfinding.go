@@ -22,7 +22,7 @@ type Waypoint struct {
 	LatLng LatLng `json:"latlng" bson:"latlng"`
 }
 
-// Returns distance between 2 waypoints in km
+// DistanceTo returns distance between 2 waypoints in km
 func (w Waypoint) DistanceTo(other Waypoint) float64 {
 	return h3.GreatCircleDistanceKm(h3.LatLng(w.LatLng), h3.LatLng(other.LatLng))
 }
@@ -49,6 +49,7 @@ func LocationFromLatLng(latlng LatLng) (Location, error) {
 	}, nil
 }
 
+// getNewCoordinates calculates a new LatLng point at a given distance from the start point towards the end point.
 func getNewCoordinates(start LatLng, end LatLng, distance float64) LatLng {
 	const earthRadius = 6371
 	startRad := start.AsRadians()
@@ -75,7 +76,7 @@ func getNewCoordinates(start LatLng, end LatLng, distance float64) LatLng {
 	}
 }
 
-// Iterates over the waypoints and returns the location when the distance (total distance travelled by user) is reached
+// GetLocation iterates over the waypoints and returns the location when the distance (total distance travelled by user) is reached
 func (w Waypoints) GetLocation(distance float64) (Location, error) {
 	previous := w[0]
 

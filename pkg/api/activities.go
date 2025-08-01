@@ -2,147 +2,372 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"github.com/AustinBayley/activity_tracker_api/pkg/activities"
 	"github.com/AustinBayley/activity_tracker_api/pkg/service"
 	jsonpatch "github.com/evanphx/json-patch/v5"
-	"github.com/monzo/typhon"
+	"github.com/gin-gonic/gin"
+	"github.com/rs/zerolog/log"
 )
 
-func (a *API) GetUserActivity(req typhon.Request) Response {
-	id, ok := a.Params(req)["userID"]
-	if !ok {
-		return NewResponse(BadRequest("id not supplied", nil))
+func (a *API) GetActivity(req *gin.Context) {
+	aid := req.Param("activityID")
+	if aid == "" {
+		req.JSON(http.StatusBadRequest, ErrorResponse{
+			Cause: "activity id not supplied",
+		})
+		return
 	}
-
-	aid, ok := a.Params(req)["activityID"]
-	if !ok {
-		return NewResponse(BadRequest("activity id not supplied", nil))
-	}
-
-	userID := service.ID(id)
 	activityID := service.ID(aid)
-
-	res, err := a.users.ReadUserActivity(req.Context, userID, activityID)
-	if err != nil {
-		return NewResponse(NotFound(err.Error(), err))
-	}
-
-	return NewResponse(res)
-}
-
-func (a *API) PostUserActivity(req typhon.Request) Response {
-	id, ok := a.Params(req)["userID"]
-	if !ok {
-		return NewResponse(BadRequest("id not supplied", nil))
-	}
-	userID := service.ID(id)
 
 	activity := activities.Activity{}
-	if err := req.Decode(&activity); err != nil {
-		return NewResponse(UnprocessableEntity("error decoding activity", err))
-	}
-	activity.ID = service.NewID()
-	activity.UserID = userID
+	if err := a.activities.Get(req, activityID, &activity); err != nil {
+		log.Error().
+			Err(err).
+			Str("activityID", aid).
+			Msg("error getting activity")
 
-	res, err := a.users.CreateUserActivity(req.Context, activity)
-	if err != nil {
-		return NewResponse(InternalServer(err.Error(), err))
+		if errors.Is(err, activities.ErrNotFound) {
+			req.JSON(http.StatusNotFound, ErrorResponse{
+				Cause: NotFound,
+			})
+			return
+		}
+
+		req.JSON(http.StatusInternalServerError, ErrorResponse{
+			Cause: InternalServer,
+		})
+		return
 	}
 
-	return NewResponseWithCode(res, http.StatusCreated)
+	req.JSON(http.StatusOK, activity)
 }
 
-func (a *API) PatchUserActivity(req typhon.Request) Response {
-	// Get user ID
-	id, ok := a.Params(req)["userID"]
-	if !ok {
-		return NewResponse(BadRequest("id not supplied", nil))
+func (a *API) PostUserActivity(req *gin.Context) {
+	id := req.Param("userID")
+	if id == "" {
+		req.JSON(http.StatusBadRequest, ErrorResponse{
+			Cause: "user ID not supplied",
+		})
+		return
 	}
-
-	// Get activity ID
-	aid, ok := a.Params(req)["activityID"]
-	if !ok {
-		return NewResponse(BadRequest("activity id not supplied", nil))
-	}
-
 	userID := service.ID(id)
-	activityID := service.ID(aid)
 
-	// Get body & store as slice of bytes
-	bb, err := req.BodyBytes(true)
-	if err != nil {
-		return NewResponse(BadRequest(err.Error(), err))
+	actor, ok := GetActorContext(req)
+	if !ok {
+		log.Error().
+			Msg("failed to get actor from context")
+
+		req.JSON(http.StatusUnauthorized, ErrorResponse{
+			Cause: Unauthorised,
+		})
+		return
 	}
 
-	// Stored activity
-	sa, err := a.users.ReadUserActivity(req.Context, userID, activityID)
+	if actor.UserID != userID && !actor.Admin {
+		log.Error().
+			Str("userID", userID.ConvertID()).
+			Msg("actor is not allowed to create activity for user")
+
+		req.JSON(http.StatusForbidden, ErrorResponse{
+			Cause: "not allowed to create activity for user",
+		})
+		return
+	}
+
+	activity := activities.Activity{}
+	if err := req.BindJSON(&activity); err != nil {
+		log.Error().
+			Err(err).
+			Msg("error binding request body")
+
+		req.JSON(http.StatusBadRequest, ErrorResponse{
+			Cause: "invalid request body",
+		})
+		return
+	}
+	activity.UserID = userID
+
+	oid, err := a.activities.Create(req, &activity)
 	if err != nil {
-		return NewResponse(NotFound(err.Error(), err))
+		log.Error().
+			Err(err).
+			Str("userID", string(userID)).
+			Msg("error creating activity")
+
+		if errors.Is(err, activities.ErrValidation) {
+			req.JSON(http.StatusUnprocessableEntity, ErrorResponse{
+				Cause: Validation,
+			})
+			return
+		}
+
+		req.JSON(http.StatusInternalServerError, ErrorResponse{
+			Cause: InternalServer,
+		})
+		return
+	}
+	activity.ID = oid
+
+	req.JSON(http.StatusCreated, activity)
+}
+
+func (a *API) PatchActivity(req *gin.Context) {
+	id := req.Param("activityID")
+	if id == "" {
+		req.JSON(http.StatusBadRequest, ErrorResponse{
+			Cause: "activity ID not supplied",
+		})
+		return
+	}
+	aID := service.ID(id)
+
+	stored := activities.Activity{}
+	if err := a.activities.Get(req, aID, &stored); err != nil {
+		log.Error().
+			Err(err).
+			Str("activityID", id).
+			Msg("error getting activity")
+
+		if errors.Is(err, activities.ErrNotFound) {
+			req.JSON(http.StatusNotFound, ErrorResponse{
+				Cause: NotFound,
+			})
+			return
+		}
+
+		req.JSON(http.StatusInternalServerError, ErrorResponse{
+			Cause: InternalServer,
+		})
+		return
+	}
+
+	actor, ok := GetActorContext(req)
+	if !ok {
+		log.Error().
+			Str("ID", stored.ID.ConvertID()).
+			Msg("failed to get actor from context")
+
+		req.JSON(http.StatusUnauthorized, ErrorResponse{
+			Cause: Unauthorised,
+		})
+		return
+	}
+
+	if stored.UserID != actor.UserID && !actor.Admin {
+		log.Error().
+			Str("ID", stored.ID.ConvertID()).
+			Msg("actor is not allowed to update activity")
+
+		req.JSON(http.StatusForbidden, ErrorResponse{
+			Cause: "not allowed to update activity",
+		})
+		return
 	}
 
 	// Stored activity as slice of bytes
-	sabb, err := json.Marshal(sa)
+	sabb, err := json.Marshal(stored)
 	if err != nil {
-		return NewResponse(UnprocessableEntity("error marshalling stored activity", err))
+		log.Error().
+			Err(err).
+			Msg("error marshalling activity")
+
+		req.JSON(http.StatusInternalServerError, ErrorResponse{
+			Cause: InternalServer,
+		})
+		return
+	}
+
+	// Get body & store as slice of bytes
+	bb, err := req.GetRawData()
+	if err != nil {
+		req.JSON(http.StatusBadRequest, ErrorResponse{
+			Cause: "error reading request body",
+		})
+		return
 	}
 
 	// Decode requested patch
 	patch, err := jsonpatch.DecodePatch(bb)
 	if err != nil {
-		return NewResponse(UnprocessableEntity("could not decode request", err))
+		log.Error().
+			Err(err).
+			Msg("error decoding patch")
+
+		req.JSON(http.StatusUnprocessableEntity, ErrorResponse{
+			Cause: "could not decode patch",
+		})
+		return
 	}
 
 	// Apply patch to stored activity to get modified document
 	modified, err := patch.Apply(sabb)
 	if err != nil {
-		return NewResponse(UnprocessableEntity("could not apply patch", err))
+		log.Error().
+			Err(err).
+			Msg("error applying patch")
+
+		req.JSON(http.StatusUnprocessableEntity, ErrorResponse{
+			Cause: "could not apply patch",
+		})
+		return
 	}
 
 	// Unmarshal modified document into user struct
 	var activity activities.Activity
 	if err = json.Unmarshal(modified, &activity); err != nil {
-		return NewResponse(UnprocessableEntity("error unmarshalling activity", err))
+		log.Error().
+			Err(err).
+			Msg("error unmarshalling activity")
+
+		req.JSON(http.StatusUnprocessableEntity, ErrorResponse{
+			Cause: "error unmarshalling activity",
+		})
+		return
 	}
 
 	// Update activity
-	res, err := a.users.UpdateUserActivity(req.Context, userID, activity)
-	if err != nil {
-		return NewResponse(InternalServer(err.Error(), err))
+	if err = a.activities.Update(req, activity); err != nil {
+		log.Error().
+			Err(err).
+			Str("activityID", id).
+			Msg("error updating activity")
+
+		switch {
+		case errors.Is(err, activities.ErrNotFound):
+			req.JSON(http.StatusNotFound, ErrorResponse{
+				Cause: NotFound,
+			})
+			return
+		case errors.Is(err, activities.ErrValidation):
+			req.JSON(http.StatusUnprocessableEntity, ErrorResponse{
+				Cause: Validation,
+			})
+			return
+		}
+
+		req.JSON(http.StatusInternalServerError, ErrorResponse{
+			Cause: InternalServer,
+		})
+		return
 	}
 
-	return NewResponse(res)
+	req.JSON(http.StatusNoContent, nil)
 }
 
-func (a *API) DeleteUserActivity(req typhon.Request) Response {
-	id, ok := a.Params(req)["userID"]
+func (a *API) DeleteActivity(req *gin.Context) {
+	id := req.Param("activityID")
+	if id == "" {
+		req.JSON(http.StatusBadRequest, ErrorResponse{
+			Cause: "activity ID not supplied",
+		})
+		return
+	}
+	aID := service.ID(id)
+
+	activity := activities.Activity{}
+	if err := a.activities.Get(req, service.ID(id), &activity); err != nil {
+		log.Error().
+			Err(err).
+			Str("activityID", id).
+			Msg("error getting activity")
+
+		if errors.Is(err, activities.ErrNotFound) {
+			req.JSON(http.StatusNotFound, ErrorResponse{
+				Cause: NotFound,
+			})
+			return
+		}
+
+		req.JSON(http.StatusInternalServerError, ErrorResponse{
+			Cause: InternalServer,
+		})
+		return
+	}
+
+	actor, ok := GetActorContext(req)
 	if !ok {
-		return NewResponse(BadRequest("user id not supplied", nil))
+		log.Error().
+			Str("ID", id).
+			Msg("failed to get actor from context")
+
+		req.JSON(http.StatusUnauthorized, ErrorResponse{
+			Cause: Unauthorised,
+		})
+		return
 	}
 
-	aid, ok := a.Params(req)["activityID"]
-	if !ok {
-		return NewResponse(BadRequest("activity id not supplied", nil))
+	if activity.UserID != actor.UserID && !actor.Admin {
+		log.Error().
+			Str("ID", activity.ID.ConvertID()).
+			Msg("actor is not allowed to delete activity")
+
+		req.JSON(http.StatusForbidden, ErrorResponse{
+			Cause: "not allowed to delete activity",
+		})
+		return
 	}
 
-	if err := a.users.DeleteUserActivity(req.Context, service.ID(id), service.ID(aid)); err != nil {
-		return NewResponse(NotFound(err.Error(), err))
+	opts := activities.ActivityDeleteOpts{
+		ID: &aID,
 	}
 
-	return NewResponseWithCode(nil, http.StatusNoContent)
+	if err := a.activities.Delete(req, opts); err != nil {
+		log.Error().
+			Err(err).
+			Str("activityID", id).
+			Msg("error deleting activity")
+
+		if errors.Is(err, activities.ErrNotFound) {
+			req.JSON(http.StatusNotFound, ErrorResponse{
+				Cause: NotFound,
+			})
+			return
+		}
+
+		req.JSON(http.StatusInternalServerError, ErrorResponse{
+			Cause: InternalServer,
+		})
+		return
+	}
+
+	req.JSON(http.StatusNoContent, nil)
 }
 
-func (a *API) GetUserActivities(req typhon.Request) Response {
-	id, ok := a.Params(req)["userID"]
-	if !ok {
-		return NewResponse(BadRequest("user id not supplied", nil))
+func (a *API) GetUserActivities(req *gin.Context) {
+	id := req.Param("userID")
+	if id == "" {
+		req.JSON(http.StatusBadRequest, ErrorResponse{
+			Cause: "user ID not supplied",
+		})
+		return
 	}
 
-	as, err := a.users.ReadUserActivities(req.Context, service.ID(id))
-	if err != nil {
-		return NewResponse(err)
+	rawOpts := ListOptions{}
+	if err := req.BindQuery(&rawOpts); err != nil {
+		log.Error().
+			Err(err).
+			Msg("error binding query parameters")
 	}
 
-	return NewResponse(as)
+	opts := activities.NewListOptions().
+		SetLimit(rawOpts.Max).
+		SetSkip(rawOpts.Page - 1).
+		SetUser(service.ID(id))
+
+	activities := make([]activities.Activity, 0, opts.Limit)
+	if err := a.activities.List(req, *opts, &activities); err != nil {
+		log.Error().
+			Err(err).
+			Msg("error listing user activities")
+
+		req.JSON(http.StatusInternalServerError, ErrorResponse{
+			Cause: InternalServer,
+		})
+		return
+	}
+
+	req.JSON(http.StatusOK, activities)
 }

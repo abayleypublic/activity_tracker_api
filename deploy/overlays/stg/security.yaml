@@ -18,7 +18,7 @@ spec:
     http:
       backendRefs:
         - name: oauth2-proxy
-          namespace: prod-auth
+          namespace: stg-auth
           port: 4180
       headersToBackend:
         - X-Auth-Request-User

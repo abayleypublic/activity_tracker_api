@@ -1,141 +1,109 @@
+// TODO - refactor to work with testing
+
 package api
 
 import (
-	"context"
-	"encoding/json"
+	"net/http"
 	"strings"
 
 	"github.com/AustinBayley/activity_tracker_api/pkg/service"
-	"github.com/monzo/slog"
-	"github.com/monzo/typhon"
+	"github.com/gin-gonic/gin"
 )
 
 const (
-	ADMIN_GROUP = "roam_admin"
+	UserCtxKey string = "userContext"
 )
 
-func response(req typhon.Request, err *Error) typhon.Response {
-	return req.ResponseWithCode(err, err.Code)
-}
-
-func BadRequestResponse(req typhon.Request, cause string, err error) typhon.Response {
-	return response(req, BadRequest(cause, err))
-}
-
-func UnauthorizedResponse(req typhon.Request, cause string, err error) typhon.Response {
-	return response(req, Unauthorized(cause, err))
-}
-
-func ForbiddenResponse(req typhon.Request, cause string, err error) typhon.Response {
-	return response(req, Forbidden(cause, err))
-}
-
-func Logging(req typhon.Request, svc typhon.Service) typhon.Response {
-
-	if req.URL.Path == "/health" {
-		return svc(req)
-	}
-
-	res := svc(req)
-	user, err := service.GetActorContext(res.Request.Context)
-	if err != nil {
-		slog.Error(req.Context, "📡 %v %v - %v - %v - %v - %v - %v", req.Method, req.URL, req.RemoteAddr, user.UserID, user.Admin, res.StatusCode, "failed to get actor context")
-		return res
-	}
-
-	if err := res.Error; err != nil {
-		slog.Error(req.Context, "📡 %v %v - %v - %v - %v - %v - %v", req.Method, req.URL, req.RemoteAddr, user.UserID, user.Admin, res.StatusCode, res.Error.Error())
-	} else {
-		slog.Debug(req.Context, "📡 %v %v - %v - %v - %v - %v", req.Method, req.URL, req.RemoteAddr, user.UserID, user.Admin, res.StatusCode)
-	}
-
-	return res
+type RequestContext struct {
+	UserID service.ID `json:"userID"`
+	Admin  bool       `json:"admin"`
+	Email  string     `json:"email"`
 }
 
 // ActorFilter updates the context with details of the user making the request.
-func (a *API) ActorFilter(req typhon.Request, svc typhon.Service) typhon.Response {
-	email := req.Header.Get("X-Auth-Request-Email")
-	groups := req.Header.Get("X-Auth-Request-Groups")
+func (a *API) ActorFilter(req *gin.Context) {
+	email := req.GetHeader("X-Auth-Request-Email")
+	groups := req.GetHeader("X-Auth-Request-Groups")
 
-	if a.env == DEV {
-		req.Context = context.WithValue(req.Context, service.UserCtxKey, a.cfg.UserContext)
-		return svc(req)
-	}
-
-	req.Context = context.WithValue(req.Context, service.UserCtxKey, service.RequestContext{
-		UserID: service.ID(email),
-		Admin:  strings.Contains(groups, ADMIN_GROUP),
+	req.Set(UserCtxKey, RequestContext{
+		Email: email,
 	})
 
-	return svc(req)
+	if email == "" {
+		req.Next()
+		return
+	}
+
+	// We need to get the ID of the user but don't want to do anything with an error
+	// as some routes do not require a user to be authenticated.
+	user, _ := a.users.GetByEmail(req, email)
+
+	if user == nil {
+		req.Next()
+		return
+	}
+
+	req.Set(UserCtxKey, RequestContext{
+		UserID: user.ID,
+		Admin:  strings.Contains(groups, a.adminGroup) && user.ID != "",
+		Email:  email,
+	})
+
+	req.Next()
+}
+
+func GetActorContext(req *gin.Context) (RequestContext, bool) {
+	rawCtx, ok := req.Get(UserCtxKey)
+	if !ok {
+		return RequestContext{}, false
+	}
+
+	reqCtx, ok := rawCtx.(RequestContext)
+	if !ok {
+		return RequestContext{}, false
+	}
+
+	return reqCtx, true
 }
 
 // Only allow requests with tokens
-func (a *API) HasAuthFilter(req typhon.Request, svc typhon.Service) typhon.Response {
-
-	reqCtx, err := service.GetActorContext(req.Context)
-	if err != nil {
-		return ForbiddenResponse(req, "user is not authorized to perform this action", err)
-	}
-
-	// If the user has not been set, return unauthorized
-	if reqCtx.UserID == service.UnknownUser {
-		return ForbiddenResponse(req, "user is not authorized to perform this action", nil)
-	}
-
-	return svc(req)
-}
-
-// Check if userID is equal to token subject or token is admin
-func (a *API) ValidUserFilter(req typhon.Request, svc typhon.Service) typhon.Response {
-
-	id, ok := a.Params(req)["userID"]
+func (a *API) HasAuthFilter(req *gin.Context) {
+	ctx, ok := GetActorContext(req)
 	if !ok {
-		return BadRequestResponse(req, "could not determine target user", nil)
-	}
-	userID := service.ID(id)
-
-	reqCtx, err := service.GetActorContext(req.Context)
-	if err != nil {
-		return ForbiddenResponse(req, "user is not authorized to perform this action", err)
+		req.JSON(http.StatusUnauthorized, ErrorResponse{
+			Cause: NotAuthorised,
+		})
+		return
 	}
 
-	if !reqCtx.Admin && reqCtx.UserID != userID {
-		return ForbiddenResponse(req, "user is not authorized to perform this action", nil)
+	if ctx.UserID == "" {
+		req.JSON(http.StatusUnauthorized, ErrorResponse{
+			Cause: NotAuthorised,
+		})
+		return
 	}
 
-	return svc(req)
+	req.Next()
 }
 
 // Only allow admin users
-func (a *API) AdminAuthFilter(req typhon.Request, svc typhon.Service) typhon.Response {
-
-	reqCtx, err := service.GetActorContext(req.Context)
-	if err != nil {
-		return ForbiddenResponse(req, "user is not authorized to perform this action", err)
+// Return not found if the user is not an admin so as not to expose information
+// about admin routes.
+func (a *API) AdminAuthFilter(req *gin.Context) {
+	reqCtx, ok := GetActorContext(req)
+	if !ok {
+		req.JSON(http.StatusNotFound, ErrorResponse{
+			Cause: NotFound,
+		})
+		return
 	}
 
 	if !reqCtx.Admin {
-		return ForbiddenResponse(req, "user is not authorized to perform this action", nil)
+		req.JSON(http.StatusNotFound, ErrorResponse{
+			Cause: NotFound,
+		})
+		return
 	}
 
-	return svc(req)
-}
-
-func (a *API) BodyFilter(req typhon.Request, svc typhon.Service) typhon.Response {
-
-	res := svc(req)
-
-	if res.Error != nil {
-		if res.Body != nil {
-			if b, err := res.BodyBytes(true); err == nil {
-				var err error
-				json.Unmarshal(b, &err)
-				res.Encode(err)
-			}
-			res.Body.Close()
-		}
-	}
-
-	return res
+	req.Next()
 }
