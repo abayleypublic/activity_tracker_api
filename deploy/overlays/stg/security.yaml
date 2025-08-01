@@ -1,12 +1,12 @@
 apiVersion: gateway.envoyproxy.io/v1alpha1
 kind: SecurityPolicy
 metadata:
-  name: prod-activity-protected
+  name: stg-activity-protected
 spec:
   targetRefs:
     - group: gateway.networking.k8s.io
       kind: HTTPRoute
-      name: prod-activity-protected
+      name: stg-activity-protected
   extAuth:
     headersToExtAuth:
       - Cookie
