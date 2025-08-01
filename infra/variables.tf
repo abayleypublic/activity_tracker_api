@@ -4,12 +4,6 @@ variable "gcp_project_id" {
   default     = "portfolio-463406"
 }
 
-variable "mongodb_atlas_host" {
-  description = "Hostname for the MongoDB Atlas instance."
-  type        = string
-  default     = "roam.mongodb.net"
-}
-
 variable "mongodb_atlas_project_id" {
   description = "Project ID for the MongoDB instance."
   type        = string
@@ -25,15 +19,6 @@ variable "mongodb_atlas_private_key" {
   type        = string
 }
 
-variable "mongodb_atlas_org_id" {
-  description = "MongoDB Atlas organization ID."
-  type        = string
-}
-
-variable "mongodb_atlas_idp_id" {
-  description = "ID of the MongoDB Atlas Identity Provider for Kubernetes OIDC integration."
-  type        = string
-}
 
 variable "tenancy_ocid" {
   description = "Oracle Cloud tenancy OCID."
@@ -79,8 +64,14 @@ variable "vault_id" {
   default     = "ocid1.vault.oc1.uk-london-1.eruckcfxaaarq.abwgiljsf5ckladyqmxmnjo2zgc6sdymeqsic3ydbgrhuj7l2ulhl7k7mgda"
 }
 
-variable "mongodb_atlas_username" {
-  description = "Username for MongoDB Atlas database user."
+variable "prod_mongodb_atlas_username" {
+  description = "Username for MongoDB Atlas production database user."
   type        = string
-  default     = "roam-user"
+  default     = "prod-activity-user"
+}
+
+variable "stg_mongodb_atlas_username" {
+  description = "Username for MongoDB Atlas staging database user."
+  type        = string
+  default     = "stg-activity-user"
 }
