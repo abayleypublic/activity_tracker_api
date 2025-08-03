@@ -25,3 +25,16 @@ spec:
         - X-Auth-Request-Email
         - X-Auth-Request-Groups
         - Authorization
+---
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: SecurityPolicy
+metadata:
+  name: cors
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+  cors:
+    allowOrigins:
+      - "https://activity.stg.austinbayley.co.uk"
+      - "https://roam.stg.austinbayley.co.uk"
