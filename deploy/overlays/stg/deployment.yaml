@@ -32,6 +32,8 @@ spec:
               value: "80"
             - name: DATABASE_NAME
               value: "stg_activity_tracker"
+            - name: GIN_MODE
+              value: release
           envFrom:
             - secretRef:
                 name: api-secrets

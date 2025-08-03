@@ -88,10 +88,6 @@ func NewAPI(cfg Config) *API {
 }
 
 func (a *API) Start() error {
-	if a.env != DEV {
-		gin.SetMode(gin.ReleaseMode)
-	}
-
 	a.Use(gin.Recovery())
 	a.Use(gin.LoggerWithConfig(gin.LoggerConfig{
 		SkipPaths: []string{
