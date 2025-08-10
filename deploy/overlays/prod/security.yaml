@@ -7,6 +7,10 @@ spec:
     - group: gateway.networking.k8s.io
       kind: HTTPRoute
       name: prod-activity-protected
+  cors:
+    allowOrigins:
+      - "https://activity.austinbayley.co.uk"
+      - "https://roam.austinbayley.co.uk"
   extAuth:
     headersToExtAuth:
       - Cookie
@@ -35,9 +39,6 @@ spec:
     - group: gateway.networking.k8s.io
       kind: HTTPRoute
       name: prod-activity-public
-    - group: gateway.networking.k8s.io
-      kind: HTTPRoute
-      name: prod-activity-protected
     - group: gateway.networking.k8s.io
       kind: HTTPRoute
       name: prod-activity-oauth

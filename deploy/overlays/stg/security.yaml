@@ -7,6 +7,10 @@ spec:
     - group: gateway.networking.k8s.io
       kind: HTTPRoute
       name: stg-activity-protected
+  cors:
+    allowOrigins:
+      - "https://activity.stg.austinbayley.co.uk"
+      - "https://roam.stg.austinbayley.co.uk"
   extAuth:
     headersToExtAuth:
       - Cookie
@@ -32,9 +36,6 @@ metadata:
   name: cors
 spec:
   targetRefs:
-    - group: gateway.networking.k8s.io
-      kind: HTTPRoute
-      name: stg-activity-protected
     - group: gateway.networking.k8s.io
       kind: HTTPRoute
       name: stg-activity-oauth
