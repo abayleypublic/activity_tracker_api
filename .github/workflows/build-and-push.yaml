@@ -48,4 +48,3 @@ jobs:
           push: true
           tags: europe-west2-docker.pkg.dev/portfolio-463406/docker-repository/${{ github.event.repository.name }}:${{ github.event.release.tag_name }}
           platforms: linux/amd64,linux/arm64
-          # platforms: linux/amd64

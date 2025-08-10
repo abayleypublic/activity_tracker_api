@@ -45,3 +45,17 @@ spec:
     allowOrigins:
       - "https://activity.stg.austinbayley.co.uk"
       - "https://roam.stg.austinbayley.co.uk"
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: ReferenceGrant
+metadata:
+  name: allow-roam-access
+spec:
+  from:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      namespace: stg-roam
+  to:
+    - group: ""
+      kind: Service
+      name: api
