@@ -46,7 +46,7 @@ spec:
       - "https://activity.austinbayley.co.uk"
       - "https://roam.austinbayley.co.uk"
 ---
-apiVersion: gateway.networking.k8s.io/v1
+apiVersion: gateway.networking.k8s.io/v1beta1
 kind: ReferenceGrant
 metadata:
   name: allow-roam-access
