@@ -151,7 +151,7 @@ func (svc *Service) List(ctx context.Context, opts ListOptions, activities inter
 
 	filter := bson.D{}
 	if opts.User != nil {
-		filter = append(filter, bson.E{Key: "user", Value: opts.User.ConvertID()})
+		filter = append(filter, bson.E{Key: "userID", Value: opts.User.ConvertID()})
 	}
 
 	cursor, err := svc.Find(ctx, filter, options)
@@ -206,7 +206,7 @@ func (svc *Service) Delete(ctx context.Context, opts ActivityDeleteOpts) error {
 		filter = append(filter, bson.E{Key: "_id", Value: opts.ID.ConvertID()})
 	}
 	if opts.User != nil {
-		filter = append(filter, bson.E{Key: "user", Value: opts.User.ConvertID()})
+		filter = append(filter, bson.E{Key: "userID", Value: opts.User.ConvertID()})
 	}
 
 	_, err := svc.DeleteMany(ctx, filter)
