@@ -20,6 +20,18 @@ spec:
       backendRefs:
         - name: api
           port: 80
+      filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            add:
+              - name: Access-Control-Allow-Origin
+                value: "https://roam.austinbayley.co.uk"
+              - name: Access-Control-Allow-Credentials
+                value: "true"
+              - name: Access-Control-Allow-Headers
+                value: "Authorization, Content-Type, X-Requested-With"
+              - name: Access-Control-Allow-Methods
+                value: "GET, POST, PUT, PATCH, DELETE, OPTIONS"
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
@@ -39,6 +51,18 @@ spec:
       backendRefs:
         - name: api
           port: 80
+      filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            add:
+              - name: Access-Control-Allow-Origin
+                value: "https://roam.austinbayley.co.uk"
+              - name: Access-Control-Allow-Credentials
+                value: "true"
+              - name: Access-Control-Allow-Headers
+                value: "Authorization, Content-Type, X-Requested-With"
+              - name: Access-Control-Allow-Methods
+                value: "GET, POST, PUT, PATCH, DELETE, OPTIONS"
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
