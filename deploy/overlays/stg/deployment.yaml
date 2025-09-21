@@ -18,6 +18,8 @@ spec:
     metadata:
       labels:
         app: api
+      annotations:
+        ebpf.instrument: "true"
     spec:
       serviceAccountName: stg-roam-sa
       containers:
