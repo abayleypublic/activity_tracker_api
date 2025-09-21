@@ -1,4 +1,4 @@
-FROM golang:1.23.10-alpine3.22
+FROM golang:1.25.0-alpine3.22
 
 ARG TARGETOS TARGETARCH TARGETVARIANT
 
