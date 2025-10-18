@@ -11,6 +11,7 @@ spec:
     allowOrigins:
       - "https://activity.stg.austinbayley.co.uk"
       - "https://roam.stg.austinbayley.co.uk"
+      - "http://localhost:5173"
   extAuth:
     headersToExtAuth:
       - Cookie
@@ -44,6 +45,7 @@ spec:
     allowOrigins:
       - "https://activity.stg.austinbayley.co.uk"
       - "https://roam.stg.austinbayley.co.uk"
+      - "http://localhost:5173"
 ---
 apiVersion: gateway.networking.k8s.io/v1beta1
 kind: ReferenceGrant
