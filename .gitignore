@@ -8,4 +8,4 @@ report.json
 coverage.out
 test_report.html
 .terraform
-.tfvars
+*.tfvars

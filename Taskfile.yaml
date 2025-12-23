@@ -11,19 +11,3 @@ tasks:
       - .env
     cmds:
       - go run cmd/server/main.go
-
-  # ==========
-  # Terraform
-  # ==========
-
-  plan-infra:
-    dir: infra
-    desc: Plan infra
-    cmds:
-      - terraform plan -var-file="../.tfvars"
-
-  apply-infra:
-    dir: infra
-    desc: Apply infra
-    cmds:
-      - terraform apply -var-file="../.tfvars"
