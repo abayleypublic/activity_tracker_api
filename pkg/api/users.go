@@ -328,98 +328,6 @@ func (a *API) PostUser(req *gin.Context) {
 	req.JSON(http.StatusCreated, user)
 }
 
-func (a *API) DownloadUserData(req *gin.Context) {
-	id := req.Param("userID")
-	if id == "" {
-		req.JSON(http.StatusBadRequest, ErrorResponse{
-			Cause: "user ID not supplied",
-		})
-		return
-	}
-	userID := service.ID(id)
-
-	actor, ok := GetActorContext(req)
-	if !ok {
-		log.Error().
-			Msg("failed to get actor from context")
-
-		req.JSON(http.StatusUnauthorized, ErrorResponse{
-			Cause: Unauthorised,
-		})
-		return
-	}
-
-	if userID != actor.UserID && !actor.Admin {
-		log.Error().
-			Str("ID", userID.ConvertID()).
-			Msg("actor is not allowed to download user data")
-
-		req.JSON(http.StatusForbidden, ErrorResponse{
-			Cause: "not allowed to download user data",
-		})
-		return
-	}
-
-	// Get user details
-	user := users.User{}
-	if err := a.users.Get(req, userID, &user); err != nil {
-		log.Error().
-			Err(err).
-			Str("userID", id).
-			Msg("error getting user data")
-
-		if errors.Is(err, users.ErrNotFound) {
-			req.JSON(http.StatusNotFound, ErrorResponse{
-				Cause: NotFound,
-			})
-			return
-		}
-
-		req.JSON(http.StatusInternalServerError, ErrorResponse{
-			Cause: InternalServer,
-		})
-		return
-	}
-
-	// Get user activities
-	opts := activities.NewListOptions().SetUser(userID)
-	activityList := make([]activities.Activity, 0)
-	if err := a.activities.List(req, *opts, &activityList); err != nil {
-		log.Error().
-			Err(err).
-			Str("userID", id).
-			Msg("error getting user activities")
-
-		req.JSON(http.StatusInternalServerError, ErrorResponse{
-			Cause: InternalServer,
-		})
-		return
-	}
-
-	// Get challenges created by user
-	createdChallenges := make([]challenges.Detail, 0)
-	if err := a.challenges.ListByCreator(req, userID, &createdChallenges); err != nil {
-		log.Error().
-			Err(err).
-			Str("userID", id).
-			Msg("error getting challenges created by user")
-
-		req.JSON(http.StatusInternalServerError, ErrorResponse{
-			Cause: InternalServer,
-		})
-		return
-	}
-
-	// Package all user data
-	userData := map[string]interface{}{
-		"user":              user,
-		"activities":        activityList,
-		"createdChallenges": createdChallenges,
-	}
-
-	req.JSON(http.StatusOK, userData)
-}
-
 func (a *API) SetChallengeMembership(member bool) gin.HandlerFunc {
 	return func(req *gin.Context) {
 		userID := req.Param("userID")
@@ -522,4 +430,73 @@ func (a *API) GetProfile(req *gin.Context) {
 	}
 
 	req.JSON(http.StatusOK, user)
+}
+
+func (a *API) DownloadUserData(req *gin.Context) {
+	ctx, ok := GetActorContext(req)
+	if !ok {
+		req.JSON(http.StatusUnauthorized, ErrorResponse{
+			Cause: NotAuthorised,
+		})
+		return
+	}
+
+	// Get user details
+	user := users.User{}
+	if err := a.users.Get(req, ctx.UserID, &user); err != nil {
+		log.Error().
+			Err(err).
+			Str("userID", string(ctx.UserID)).
+			Msg("error getting user data")
+
+		if errors.Is(err, users.ErrNotFound) {
+			req.JSON(http.StatusNotFound, ErrorResponse{
+				Cause: NotFound,
+			})
+			return
+		}
+
+		req.JSON(http.StatusInternalServerError, ErrorResponse{
+			Cause: InternalServer,
+		})
+		return
+	}
+
+	// Get user activities
+	opts := activities.NewListOptions().SetUser(ctx.UserID)
+	activityList := make([]activities.Activity, 0)
+	if err := a.activities.List(req, *opts, &activityList); err != nil {
+		log.Error().
+			Err(err).
+			Str("userID", string(ctx.UserID)).
+			Msg("error getting user activities")
+
+		req.JSON(http.StatusInternalServerError, ErrorResponse{
+			Cause: InternalServer,
+		})
+		return
+	}
+
+	// Get challenges created by user
+	createdChallenges := make([]challenges.Detail, 0)
+	if err := a.challenges.ListByCreator(req, ctx.UserID, &createdChallenges); err != nil {
+		log.Error().
+			Err(err).
+			Str("userID", string(ctx.UserID)).
+			Msg("error getting challenges created by user")
+
+		req.JSON(http.StatusInternalServerError, ErrorResponse{
+			Cause: InternalServer,
+		})
+		return
+	}
+
+	// Package all user data
+	userData := map[string]interface{}{
+		"user":              user,
+		"activities":        activityList,
+		"createdChallenges": createdChallenges,
+	}
+
+	req.JSON(http.StatusOK, userData)
 }
