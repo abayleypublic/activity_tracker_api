@@ -149,6 +149,16 @@ func (svc *Service) List(ctx context.Context, opts ListOptions, challenges *[]De
 	return nil
 }
 
+// ListByCreator retrieves challenges created by a specific user.
+func (svc *Service) ListByCreator(ctx context.Context, creatorID service.ID, challenges interface{}) error {
+	opts := NewDetailListOptions()
+	opts.SetCreatedBy(creatorID)
+	if err := svc.challenges.List(ctx, opts, challenges); err != nil {
+		return fmt.Errorf("failed to list challenges by creator: %w", err)
+	}
+	return nil
+}
+
 type Operation interface {
 	Execute(ctx context.Context, details *Details, memberships *Memberships) error
 }
@@ -239,6 +249,47 @@ func (svc *Service) Delete(ctx context.Context, challengeID service.ID) error {
 
 		if err := svc.memberships.Delete(sCtx, opts); err != nil {
 			return nil, fmt.Errorf("failed to delete memberships: %w", err)
+		}
+
+		return nil, nil
+	})
+
+	return err
+}
+
+// DeleteByCreator removes all challenges created by a specific user and their associated memberships.
+func (svc *Service) DeleteByCreator(ctx context.Context, userID service.ID) error {
+	session, err := svc.challenges.Database().Client().StartSession()
+	if err != nil {
+		return fmt.Errorf("failed to start session: %w", err)
+	}
+	defer session.EndSession(ctx)
+
+	_, err = session.WithTransaction(ctx, func(sCtx context.Context) (interface{}, error) {
+		// Get all challenges created by this user
+		opts := NewDetailListOptions()
+		opts.SetCreatedBy(userID)
+		challengeList := make([]Detail, 0)
+		if err := svc.challenges.List(sCtx, opts, &challengeList); err != nil {
+			return nil, fmt.Errorf("failed to list challenges for creator: %w", err)
+		}
+
+		// Delete memberships for each challenge
+		for _, challenge := range challengeList {
+			membershipOpts := MembershipDeleteOpts{
+				Challenge: &challenge.ID,
+			}
+			if err := svc.memberships.Delete(sCtx, membershipOpts); err != nil {
+				return nil, fmt.Errorf("failed to delete memberships for challenge %s: %w", challenge.ID.ConvertID(), err)
+			}
+		}
+
+		// Delete all challenges created by this user
+		deleteOpts := DetailDeleteOpts{
+			CreatedBy: &userID,
+		}
+		if err := svc.challenges.DeleteMany(sCtx, deleteOpts); err != nil {
+			return nil, fmt.Errorf("failed to delete challenges: %w", err)
 		}
 
 		return nil, nil

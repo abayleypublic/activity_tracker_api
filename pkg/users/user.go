@@ -165,6 +165,11 @@ func (svc *Service) Delete(ctx context.Context, id service.ID) error {
 		if err := svc.activities.Delete(sCtx, actOpts); err != nil {
 			return nil, fmt.Errorf("failed to delete activities for user: %w", err)
 		}
+
+		if err := svc.challenges.DeleteByCreator(sCtx, id); err != nil {
+			return nil, fmt.Errorf("failed to delete challenges created by user: %w", err)
+		}
+
 		return nil, nil
 	})
 

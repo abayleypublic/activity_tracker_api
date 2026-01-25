@@ -110,8 +110,9 @@ func (svc *Details) Get(ctx context.Context, id service.ID, challenge interface{
 }
 
 type DetailListOptions struct {
-	Limit int64
-	Skip  int64
+	Limit     int64
+	Skip      int64
+	CreatedBy *service.ID
 }
 
 func NewDetailListOptions() DetailListOptions {
@@ -128,6 +129,11 @@ func (opts *DetailListOptions) SetSkip(skip int64) *DetailListOptions {
 	return opts
 }
 
+func (opts *DetailListOptions) SetCreatedBy(id service.ID) *DetailListOptions {
+	opts.CreatedBy = &id
+	return opts
+}
+
 // List retrieves challenges based on the given criteria.
 func (svc *Details) List(ctx context.Context, opts DetailListOptions, challenges interface{}) error {
 	options := options.Find()
@@ -140,7 +146,12 @@ func (svc *Details) List(ctx context.Context, opts DetailListOptions, challenges
 		options = options.SetSkip(opts.Skip)
 	}
 
-	cursor, err := svc.Find(ctx, bson.D{}, options)
+	filter := bson.D{}
+	if opts.CreatedBy != nil {
+		filter = append(filter, bson.E{Key: "createdBy", Value: opts.CreatedBy.ConvertID()})
+	}
+
+	cursor, err := svc.Find(ctx, filter, options)
 	if err != nil {
 		return fmt.Errorf("%w: %w", ErrUnknown, err)
 	}
@@ -185,6 +196,25 @@ func (svc *Details) Delete(ctx context.Context, challengeID service.ID) error {
 
 	if res.DeletedCount != 1 {
 		return ErrNotFound
+	}
+
+	return nil
+}
+
+type DetailDeleteOpts struct {
+	CreatedBy *service.ID
+}
+
+// DeleteMany removes challenges based on the provided criteria.
+func (svc *Details) DeleteMany(ctx context.Context, opts DetailDeleteOpts) error {
+	filter := bson.D{}
+	if opts.CreatedBy != nil {
+		filter = append(filter, bson.E{Key: "createdBy", Value: opts.CreatedBy.ConvertID()})
+	}
+
+	_, err := svc.Collection.DeleteMany(ctx, filter)
+	if err != nil {
+		return fmt.Errorf("%w: %w", ErrUnknown, err)
 	}
 
 	return nil

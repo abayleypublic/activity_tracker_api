@@ -127,7 +127,8 @@ func (a *API) Start() error {
 	a.PUT("/users/:userID/challenges/:id", a.SetChallengeMembership(true))     // valid user
 	a.DELETE("/users/:userID/challenges/:id", a.SetChallengeMembership(false)) // valid user
 
-	a.GET("/profile", a.GetProfile) // auth (maybe valid user?)
+	a.GET("/profile", a.GetProfile)                // auth (maybe valid user?)
+	a.GET("/profile/download", a.DownloadUserData) // valid user
 
 	defer func() {
 		log.Warn().
